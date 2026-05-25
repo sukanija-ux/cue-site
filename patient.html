@@ -16,8 +16,10 @@
       <button class="role-btn active">Patient</button>
       <button class="role-btn" onclick="window.location='doctor.html'">Doctor</button>
     </div>
-    <div class="nav-right">
+    <div class="nav-right" style="display:flex;align-items:center;gap:12px">
+      <span style="font-size:.8rem;color:var(--muted)" class="nav-user-name"></span>
       <span class="nav-id"><span class="nav-id-dot"></span><span id="navId">PT-????</span></span>
+      <button onclick="window.CUE && window.CUE.Session.logout()" class="btn btn-ghost" style="font-size:.75rem;padding:4px 10px;color:var(--muted)">Sign out</button>
     </div>
   </div>
 </nav>
@@ -494,8 +496,8 @@
 .vacc-row:last-child { border-bottom: none; }
 </style>
 
-<script src="app.js?v=5"></script>
-<script src="patient.js?v=5"></script>
-<script src="tracker.js?v=5"></script>
+<script src="app.js?v=6"></script>
+<script src="patient.js?v=6"></script>
+<script src="tracker.js?v=6"></script>
 </body>
 </html>

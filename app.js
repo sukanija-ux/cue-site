@@ -5,19 +5,27 @@
 
 // ── Session ──────────────────────────────────────────────────
 const Session = {
-  get role()      { return sessionStorage.getItem('cue_role')      || 'patient'; },
-  get id()        { return sessionStorage.getItem('cue_id')        || generateId('PT'); },
-  get firstName() { return sessionStorage.getItem('cue_firstname') || ''; },
+  get role()      { return localStorage.getItem('cue_role')      || 'patient'; },
+  get id()        { return localStorage.getItem('cue_id')        || generateId('PT'); },
+  get firstName() { return localStorage.getItem('cue_firstname') || ''; },
+  get isLoggedIn(){ return !!localStorage.getItem('cue_id'); },
   init() {
-    if (!sessionStorage.getItem('cue_id')) {
+    if (!localStorage.getItem('cue_id')) {
       const id = generateId(this.role === 'doctor' ? 'DR' : 'PT');
-      sessionStorage.setItem('cue_id', id);
-      sessionStorage.setItem('cue_role', this.role);
+      localStorage.setItem('cue_id', id);
+      localStorage.setItem('cue_role', this.role);
     }
     document.querySelectorAll('#navId').forEach(el => el.textContent = this.id);
-    // Show first name greeting if available
     const fn = this.firstName;
     document.querySelectorAll('.patient-greeting').forEach(el => { el.textContent = fn ? 'Hello, ' + fn : ''; });
+    document.querySelectorAll('.nav-user-name').forEach(el => { el.textContent = fn || this.id; });
+  },
+  logout() {
+    ['cue_role','cue_id','cue_name','cue_firstname'].forEach(k => {
+      localStorage.removeItem(k);
+      sessionStorage.removeItem(k);
+    });
+    window.location.href = 'index.html';
   }
 };
 
@@ -27,10 +35,10 @@ function generateId(prefix) {
   return `${prefix}-${num}-${suf}`;
 }
 
-// ── Data store — sessionStorage-backed, keyed by patient ID ──
+// ── Data store — localStorage-backed, keyed by patient ID ────
 const Store = {
   _data: (function() {
-    try { return JSON.parse(sessionStorage.getItem('cue_store') || '{}'); } catch(e) { return {}; }
+    try { return JSON.parse(localStorage.getItem('cue_store') || '{}'); } catch(e) { return {}; }
   })(),
   get(patientId) {
     if (!this._data[patientId]) this._data[patientId] = { checkins: [], consultation: null };
@@ -47,7 +55,7 @@ const Store = {
     this._persist();
   },
   _persist() {
-    try { sessionStorage.setItem('cue_store', JSON.stringify(this._data)); } catch(e) {}
+    try { localStorage.setItem('cue_store', JSON.stringify(this._data)); } catch(e) {}
   }
 };
 
@@ -633,9 +641,9 @@ const DEFAULT_HEALTH_HISTORY = {
 };
 
 function getHealthHistory(ptId) {
-  // Restore any patient-edited overrides from sessionStorage
+  // Restore any patient-edited overrides from localStorage
   try {
-    const edits = JSON.parse(sessionStorage.getItem('cue_health_edits') || '{}');
+    const edits = JSON.parse(localStorage.getItem('cue_health_edits') || '{}');
     if (edits[ptId]) Object.assign(HEALTH_HISTORY[ptId] || (HEALTH_HISTORY[ptId] = Object.assign({}, DEFAULT_HEALTH_HISTORY)), edits[ptId]);
   } catch(e) {}
   return HEALTH_HISTORY[ptId] || DEFAULT_HEALTH_HISTORY;
@@ -643,9 +651,9 @@ function getHealthHistory(ptId) {
 
 function persistHealthEdit(ptId, data) {
   try {
-    const edits = JSON.parse(sessionStorage.getItem('cue_health_edits') || '{}');
+    const edits = JSON.parse(localStorage.getItem('cue_health_edits') || '{}');
     edits[ptId] = data;
-    sessionStorage.setItem('cue_health_edits', JSON.stringify(edits));
+    localStorage.setItem('cue_health_edits', JSON.stringify(edits));
   } catch(e) {}
 }
 

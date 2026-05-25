@@ -29,7 +29,19 @@
       <p style="font-size:.9rem">AI pre-consultation, symptom tracking, and clinical oversight. Choose how you're accessing Cue today.</p>
     </div>
 
+    <!-- Welcome back banner (shown when already logged in) -->
+    <div id="welcomeBack" style="display:none;margin-bottom:24px;padding:20px;border-radius:var(--r);background:var(--surface-2);border:1px solid var(--border)">
+      <div style="font-size:.78rem;color:var(--subtle);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Welcome back</div>
+      <div style="font-size:1.1rem;font-weight:600;color:var(--text);margin-bottom:2px" id="wbName"></div>
+      <div class="font-mono" style="font-size:.78rem;color:var(--muted);margin-bottom:16px" id="wbId"></div>
+      <div class="flex gap-8">
+        <button class="btn btn-primary flex-1" onclick="continueSession()">Continue →</button>
+        <button class="btn btn-ghost" onclick="switchAccount()" style="font-size:.8rem;padding:0 14px">Switch account</button>
+      </div>
+    </div>
+
     <!-- Role cards -->
+    <div id="roleCards">
     <div class="stack-10" style="text-align:left;margin-bottom:24px">
 
       <div class="role-card" id="cardPatient" onclick="selectRole('patient')">
@@ -97,6 +109,7 @@
         <button onclick="fillDemo('Emily Chen')" class="demo-name-btn">Emily Chen</button>
       </p>
     </div>
+    </div><!-- /roleCards -->
 
     <div style="margin-top:32px;padding-top:20px;border-top:1px solid var(--border)">
       <p style="font-size:.72rem;text-align:center;color:var(--subtle)">
@@ -129,11 +142,27 @@
 .demo-name-btn:hover { background: var(--accent-bg); }
 </style>
 
-<script src="app.js?v=5"></script>
+<script src="app.js?v=6"></script>
 <script>
   let selectedRole = null;
 
   if (localStorage.getItem('cue_cookie')) document.getElementById('cookieBanner')?.remove();
+
+  // ── Auto-redirect if already logged in ──────────────────────
+  (function checkExistingSession() {
+    const id   = localStorage.getItem('cue_id');
+    const role = localStorage.getItem('cue_role');
+    const name = localStorage.getItem('cue_firstname');
+    if (!id || !role) return;
+    // Show welcome-back banner instead of redirecting immediately
+    const banner = document.getElementById('welcomeBack');
+    if (banner) {
+      document.getElementById('wbName').textContent = name || id;
+      document.getElementById('wbId').textContent   = id;
+      banner.style.display = '';
+    }
+    document.getElementById('roleCards').style.display = 'none';
+  })();
 
   function selectRole(role) {
     selectedRole = role;
@@ -183,18 +212,29 @@
       if (!name) { alert('Please enter your name.'); return; }
       const firstName = name.split(' ')[0];
       const id = window.CUE ? window.CUE.lookupPatient(name) : 'PT-0000-XX';
-      sessionStorage.setItem('cue_role',      'patient');
-      sessionStorage.setItem('cue_id',        id);
-      sessionStorage.setItem('cue_name',      name);
-      sessionStorage.setItem('cue_firstname', firstName);
+      localStorage.setItem('cue_role',      'patient');
+      localStorage.setItem('cue_id',        id);
+      localStorage.setItem('cue_name',      name);
+      localStorage.setItem('cue_firstname', firstName);
       window.location.href = 'patient.html';
     } else {
       const id = document.getElementById('drIdInput').value.trim();
       if (!id) { alert('Please enter your Provider ID.'); return; }
-      sessionStorage.setItem('cue_role', 'doctor');
-      sessionStorage.setItem('cue_id',   id);
+      localStorage.setItem('cue_role', 'doctor');
+      localStorage.setItem('cue_id',   id);
       window.location.href = 'doctor.html';
     }
+  }
+
+  function continueSession() {
+    const role = localStorage.getItem('cue_role');
+    window.location.href = role === 'doctor' ? 'doctor.html' : 'patient.html';
+  }
+
+  function switchAccount() {
+    ['cue_role','cue_id','cue_name','cue_firstname'].forEach(k => localStorage.removeItem(k));
+    document.getElementById('welcomeBack').style.display = 'none';
+    document.getElementById('roleCards').style.display = '';
   }
 </script>
 </body>

@@ -10,7 +10,7 @@ var QUESTIONS = [];
 
 // ── Build tailored questions based on patient health history ──
 function buildTailoredQuestions(history) {
-  var fn        = history.firstName || sessionStorage.getItem('cue_firstname') || '';
+  var fn        = history.firstName || localStorage.getItem('cue_firstname') || '';
   var conditions = history.chronicConditions || [];
   var meds       = history.currentMedications || [];
   var allergies  = history.allergies || [];
@@ -757,7 +757,7 @@ function saveEdit() {
   _p.persistHealthEdit(ptId, h);
 
   // Re-render
-  var fn = sessionStorage.getItem('cue_firstname') || h.firstName || '';
+  var fn = localStorage.getItem('cue_firstname') || h.firstName || '';
   renderHealthHistory(ptId, fn);
   closeEditModal();
 

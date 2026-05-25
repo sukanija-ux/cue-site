@@ -16,8 +16,9 @@
       <button class="role-btn" onclick="window.location='patient.html'">Patient</button>
       <button class="role-btn active">Doctor</button>
     </div>
-    <div class="nav-right">
+    <div class="nav-right" style="display:flex;align-items:center;gap:12px">
       <span class="nav-id"><span class="nav-id-dot"></span><span id="navId">DR-????</span></span>
+      <button onclick="window.CUE && window.CUE.Session.logout()" class="btn btn-ghost" style="font-size:.75rem;padding:4px 10px;color:var(--muted)">Sign out</button>
     </div>
   </div>
 </nav>
@@ -245,7 +246,7 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="app.js?v=5"></script>
-<script src="doctor.js?v=5"></script>
+<script src="app.js?v=6"></script>
+<script src="doctor.js?v=6"></script>
 </body>
 </html>

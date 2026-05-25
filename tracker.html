@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Health Tracker | Cue</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<div class="compliance-bar">
+  <span class="compliance-item"><span class="compliance-dot"></span>Symptom data linked to patient ID only</span>
+  <span class="compliance-item"><span class="compliance-dot"></span>AES-256 at rest</span>
+  <span class="compliance-item"><span class="compliance-dot"></span>Audit log active</span>
+  <span class="compliance-item"><span class="compliance-dot"></span>GDPR Art. 9 sensitive data protections applied</span>
+</div>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo"><div class="nav-logo-mark">C</div>Cue</a>
+    <div class="nav-links">
+      <a href="patient.html" class="nav-link">E-Intern</a>
+      <a href="tracker.html" class="nav-link active">Health Tracker</a>
+      <a href="doctor.html"  class="nav-link">Doctor View</a>
+      <span class="nav-id" id="navId">PT-????</span>
+    </div>
+  </div>
+</nav>
+
+<div class="container page">
+  <div class="flex-between mb-16 flex-wrap gap-12">
+    <div>
+      <h1>Health Tracker</h1>
+      <p class="mt-4">Log how you feel. Your doctor monitors your recovery in real time.</p>
+    </div>
+    <div class="flex gap-8 flex-wrap">
+      <span class="badge badge-green" style="padding:6px 12px;font-size:.8rem">● Active — next check-in in <span id="nextCheckin">2d 4h</span></span>
+      <button class="btn btn-primary btn-sm" onclick="openLogModal()">+ Log Symptoms Now</button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stat-grid mb-20">
+    <div class="stat-card">
+      <div class="stat-val">6</div>
+      <div class="stat-label">Days tracked</div>
+      <div class="stat-change up">↓ Improving</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">3.2</div>
+      <div class="stat-label">Avg severity today</div>
+      <div class="stat-change up">↓ from 7.1 at onset</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">3</div>
+      <div class="stat-label">Check-ins done</div>
+      <div class="stat-change neutral">Every other day</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val text-danger">1</div>
+      <div class="stat-label">Outliers flagged</div>
+      <div class="stat-change down">Doctor notified</div>
+    </div>
+  </div>
+
+  <div class="layout-with-sidebar">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-section">Navigation</div>
+      <div class="sidebar-nav">
+        <div class="sidebar-link active" onclick="showSection('timeline')">📅 Symptom Timeline</div>
+        <div class="sidebar-link" onclick="showSection('chart')">📈 Severity Chart</div>
+        <div class="sidebar-link" onclick="showSection('checkins')">📞 Check-in Calls</div>
+        <div class="sidebar-link" onclick="showSection('recommendations')">💊 Recommendations</div>
+      </div>
+      <div class="divider mt-12 mb-12"></div>
+      <div class="sidebar-section">Doctor</div>
+      <div class="sidebar-nav">
+        <div class="sidebar-link" onclick="window.location='doctor.html'">👨‍⚕️ Doctor View</div>
+      </div>
+      <div class="divider mt-12"></div>
+      <div class="card mt-12" style="background:var(--clr-surface-2)">
+        <div class="text-xs text-muted mb-4">Assigned Physician</div>
+        <div class="font-mono text-sm font-600" id="assignedDoc">DR-1042-MB</div>
+        <div class="badge badge-green mt-8">● Monitoring</div>
+      </div>
+    </div>
+
+    <!-- Main -->
+    <div class="stack-20">
+
+      <!-- Timeline -->
+      <div id="sectionTimeline">
+        <div class="card" style="padding:0;overflow:hidden">
+          <div class="card-header-bar">
+            <div>
+              <div class="card-title">📅 Symptom Timeline</div>
+              <div class="card-sub">Check-ins from illness onset to today</div>
+            </div>
+            <select class="lang-select" style="min-width:130px;font-size:.8rem" onchange="filterTimeline(this.value)">
+              <option value="all">All entries</option>
+              <option value="outlier">Outliers only</option>
+              <option value="improving">Improving</option>
+            </select>
+          </div>
+          <div style="padding:20px">
+            <div class="timeline" id="timelineList"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chart -->
+      <div id="sectionChart" class="hidden">
+        <div class="card">
+          <div class="card-header-bar">
+            <div>
+              <div class="card-title">📈 Severity Over Time</div>
+              <div class="card-sub">Scale 0–10 · dashed line = alert threshold (6)</div>
+            </div>
+          </div>
+          <div style="padding:20px">
+            <canvas id="severityChart" height="200" style="width:100%"></canvas>
+            <div class="flex gap-16 mt-16 flex-wrap">
+              <div class="flex gap-6 text-xs items-center"><span style="display:inline-block;width:14px;height:3px;background:var(--clr-teal);border-radius:2px"></span>Overall severity</div>
+              <div class="flex gap-6 text-xs items-center"><span style="display:inline-block;width:14px;height:2px;border-top:2px dashed var(--clr-danger)"></span>Alert threshold</div>
+              <div class="flex gap-6 text-xs items-center"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--clr-danger)"></span>Outlier flagged</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Check-ins -->
+      <div id="sectionCheckins" class="hidden">
+        <div class="card" style="padding:0;overflow:hidden">
+          <div class="card-header-bar">
+            <div>
+              <div class="card-title">📞 Automated Check-in Calls</div>
+              <div class="card-sub">Scheduled every other day by Cue's voice bot</div>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Date & Time</th><th>Duration</th><th>Language</th><th>Severity</th><th>Status</th><th></th></tr>
+              </thead>
+              <tbody id="checkinTable"></tbody>
+            </table>
+          </div>
+          <div style="padding:16px;border-top:1px solid var(--clr-border)">
+            <h4 class="mb-8">Upcoming</h4>
+            <div class="stack-8" id="upcomingCalls"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recommendations -->
+      <div id="sectionRecommendations" class="hidden">
+        <div class="card">
+          <div class="card-header-bar">
+            <div>
+              <div class="card-title">💊 Personalised Recommendations</div>
+              <div class="card-sub">Set by your physician based on symptom trajectory</div>
+            </div>
+          </div>
+          <div id="recommendationsList" class="stack-12 mt-4"></div>
+          <div class="alert alert-warning mt-16">
+            <span class="alert-icon">⚠️</span>
+            <div class="alert-body"><p>Recommendations are set by your physician. Do not adjust medications without consulting your doctor.</p></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Log Symptoms Modal -->
+<div class="modal-overlay" id="logModal">
+  <div class="modal" style="max-width:620px">
+    <div class="modal-header">
+      <h3>Log Symptoms</h3>
+      <button class="modal-close" onclick="closeLogModal()">✕</button>
+    </div>
+    <div class="alert alert-info mb-16">
+      <span class="alert-icon">🔒</span>
+      <div class="alert-body"><p>Logged under patient ID <strong class="font-mono" id="logPatientId">PT-????</strong> only.</p></div>
+    </div>
+
+    <!-- Check-in progress bar -->
+    <div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span class="text-xs text-muted">Check-in progress</span>
+        <span class="text-xs text-muted font-mono" id="checkinProgressLabel">0 / 5</span>
+      </div>
+      <div style="height:4px;background:var(--clr-border);border-radius:2px">
+        <div id="checkinProgress" style="height:100%;width:0%;background:var(--clr-teal);border-radius:2px;transition:width .3s"></div>
+      </div>
+    </div>
+
+    <!-- Conversational chat -->
+    <div id="checkinChat" style="max-height:260px;overflow-y:auto;margin-bottom:12px;display:flex;flex-direction:column;gap:8px"></div>
+
+    <!-- Voice + text input row -->
+    <div class="flex items-center gap-10 mb-12">
+      <button class="record-btn" id="logRecordBtn" onclick="toggleLogRecording()" style="width:40px;height:40px;font-size:.9rem;flex-shrink:0">🎙️</button>
+      <div class="waveform idle" id="logWaveform" style="flex:0 0 80px">
+        <div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+      </div>
+      <input type="text" id="checkinInput" class="form-input" style="flex:1" placeholder="Type your answer…"
+        onkeydown="if(event.key==='Enter')sendCheckinTyped()" />
+      <button class="btn btn-primary btn-sm" onclick="sendCheckinTyped()">Send</button>
+    </div>
+
+    <div class="divider mb-12"></div>
+
+    <!-- Overall severity + submit — shown only after all questions answered -->
+    <div id="checkinSubmitRow" style="display:none">
+      <div class="slider-row mb-12" style="display:flex;align-items:center;gap:12px">
+        <span class="slider-label text-sm" style="min-width:160px">Overall severity (0–10)</span>
+        <input type="range" class="slider" min="0" max="10" value="3" id="overallSeverity"
+          oninput="document.getElementById('overallSeverityVal').textContent=this.value" />
+        <span class="slider-value font-mono" id="overallSeverityVal">3</span>
+      </div>
+      <div class="form-group mb-12">
+        <label class="form-label">Additional notes (optional)</label>
+        <textarea class="form-textarea" id="logNotes" placeholder="Anything else to add…" rows="2"></textarea>
+      </div>
+      <div class="flex gap-12">
+        <button class="btn btn-ghost" onclick="closeLogModal()">Cancel</button>
+        <button class="btn btn-primary" style="flex:1" onclick="submitLog()">Save Entry</button>
+      </div>
+    </div>
+
+    <div class="flex gap-12" id="checkinCancelRow">
+      <button class="btn btn-ghost" onclick="closeLogModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script src="tracker.js"></script>
+</body>
+</html>

@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Doctor Dashboard — Cue</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- Nav -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo"><div class="nav-logo-mark">C</div>Cue</a>
+    <div class="role-switch">
+      <button class="role-btn" onclick="window.location='patient.html'">Patient</button>
+      <button class="role-btn active">Doctor</button>
+    </div>
+    <div class="nav-right">
+      <span class="nav-id"><span class="nav-id-dot"></span><span id="navId">DR-????</span></span>
+    </div>
+  </div>
+</nav>
+
+<!-- App shell — three columns: patient list | main | detail -->
+<div style="display:grid;grid-template-columns:240px 1fr 280px;min-height:calc(100vh - 52px)">
+
+  <!-- ── Column 1: Patient list ── -->
+  <aside style="border-right:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;position:sticky;top:52px;height:calc(100vh - 52px);overflow:hidden">
+
+    <!-- Nav items -->
+    <div style="padding:14px 12px;border-bottom:1px solid var(--border)">
+      <div class="sidebar-section" style="padding:0 0 8px">Views</div>
+      <div class="stack-4">
+        <button class="sidebar-item active" id="navQueue" onclick="showSection('queue')">
+          <span class="icon">📋</span> Queue
+          <span class="badge-count" id="queueCount">3</span>
+        </button>
+        <button class="sidebar-item" id="navPatients" onclick="showSection('patients')">
+          <span class="icon">👥</span> All Patients
+        </button>
+        <button class="sidebar-item" id="navCalendar" onclick="showSection('calendar')">
+          <span class="icon">📅</span> Calendar
+        </button>
+        <button class="sidebar-item" id="navAlerts" onclick="showSection('alerts')">
+          <span class="icon">🚨</span> Alerts
+          <span class="badge-count" id="alertCount">2</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Search + patient list -->
+    <div style="padding:12px;border-bottom:1px solid var(--border)">
+      <div class="sidebar-search">
+        <span style="color:var(--subtle);font-size:.85rem">🔍</span>
+        <input id="ptSearch" placeholder="Search patients…" oninput="filterPatientList(this.value)" />
+      </div>
+    </div>
+
+    <div style="flex:1;overflow-y:auto" id="patientList"></div>
+
+  </aside>
+
+  <!-- ── Column 2: Main content ── -->
+  <main style="background:var(--bg);overflow-y:auto">
+    <div style="padding:28px 28px 80px">
+
+      <!-- Stats row -->
+      <div class="stat-row mb-24">
+        <div class="stat-card">
+          <div class="stat-val" id="statQueue">3</div>
+          <div class="stat-label">Pending reviews</div>
+          <div class="stat-sub down">↑ 3 new today</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val">47</div>
+          <div class="stat-label">Active patients</div>
+          <div class="stat-sub neutral">This week</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" style="color:var(--red)" id="statAlerts">2</div>
+          <div class="stat-label">Outliers</div>
+          <div class="stat-sub down">Need follow-up</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val" style="color:var(--accent)">94%</div>
+          <div class="stat-label">AI accuracy</div>
+          <div class="stat-sub up">↑ vs last month</div>
+        </div>
+      </div>
+
+      <!-- Queue -->
+      <div id="sectionQueue">
+        <div class="flex items-center justify-between mb-16">
+          <h2>Pre-Consultation Queue</h2>
+          <select class="form-select" style="width:auto;padding:6px 12px;font-size:.8rem" onchange="filterQueue(this.value)">
+            <option value="all">All</option>
+            <option value="pending">Pending</option>
+            <option value="confirmed">Confirmed</option>
+          </select>
+        </div>
+        <div id="queueList" class="stack-12"></div>
+      </div>
+
+      <!-- All patients table -->
+      <div id="sectionPatients" style="display:none">
+        <h2 class="mb-16">All Patients</h2>
+        <div class="card" style="padding:0;overflow:hidden">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Patient ID</th>
+                  <th>Condition</th>
+                  <th>Days</th>
+                  <th>Severity trend</th>
+                  <th>Last check-in</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="patientsTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Calendar -->
+      <div id="sectionCalendar" style="display:none">
+        <div class="flex items-center justify-between mb-16">
+          <h2 id="calTitle">May 2026</h2>
+          <div class="flex gap-8">
+            <button class="btn btn-ghost btn-sm" onclick="changeMonth(-1)">← Prev</button>
+            <button class="btn btn-ghost btn-sm" onclick="changeMonth(1)">Next →</button>
+          </div>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+        <div class="mt-16">
+          <h3 class="mb-10" id="calDayLabel">Select a day to see appointments</h3>
+          <div id="calDayList" class="stack-8"></div>
+        </div>
+      </div>
+
+      <!-- Alerts / outliers -->
+      <div id="sectionAlerts" style="display:none">
+        <div class="flex items-center gap-10 mb-16">
+          <h2>Outlier Alerts</h2>
+          <span class="badge badge-red" id="alertBadge">2 require review</span>
+        </div>
+        <div class="alert alert-danger mb-16">
+          <span>🚨</span>
+          <p><strong>These patients need immediate attention.</strong> Severity has crossed the alert threshold or shown unexpected regression.</p>
+        </div>
+        <div id="outliersList" class="stack-12"></div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ── Column 3: Patient detail ── -->
+  <aside style="border-left:1px solid var(--border);background:var(--surface);position:sticky;top:52px;height:calc(100vh - 52px);overflow-y:auto">
+    <div style="padding:16px;border-bottom:1px solid var(--border)">
+      <div class="text-xs" style="color:var(--subtle);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Patient Detail</div>
+    </div>
+    <div id="detailPanel" style="padding:16px">
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;gap:8px">
+        <span style="font-size:2rem;opacity:.25">👤</span>
+        <p class="text-xs text-muted" style="text-align:center">Select a patient to view details</p>
+      </div>
+    </div>
+  </aside>
+
+</div>
+
+<!-- Diagnosis Confirm Modal -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal" style="max-width:620px">
+    <div class="modal-header">
+      <h3>Review Pre-Consultation</h3>
+      <button class="modal-close" onclick="closeConfirmModal()">✕</button>
+    </div>
+    <div class="stack-16" id="modalContent"></div>
+    <hr class="divider mt-16 mb-16">
+    <div class="stack-12">
+      <h4>Your decision</h4>
+      <div class="flex gap-8 flex-wrap">
+        <button class="btn btn-success" onclick="confirmDiagnosis('confirm')">✓ Confirm AI diagnosis</button>
+        <button class="btn btn-outline" onclick="confirmDiagnosis('override')">✏️ Override</button>
+        <button class="btn btn-ghost"   onclick="confirmDiagnosis('defer')">⏸ Defer</button>
+      </div>
+      <div id="overridePanel" style="display:none" class="stack-12">
+        <div class="form-group">
+          <label class="form-label">Your diagnosis</label>
+          <input class="form-input" id="overrideDx" placeholder="Enter your clinical diagnosis…" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Clinical reasoning</label>
+          <textarea class="form-textarea" id="overrideNotes" placeholder="Add your notes…"></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="submitOverride()">Submit override</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Outlier Flag Modal -->
+<div class="modal-overlay" id="outlierModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Flag as outlier</h3>
+      <button class="modal-close" onclick="document.getElementById('outlierModal').classList.remove('open')">✕</button>
+    </div>
+    <div class="stack-16">
+      <div class="alert alert-danger">
+        <span>🚨</span>
+        <p>Flagging triggers a <strong>priority follow-up</strong> and notifies the on-call team.</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Reason</label>
+        <select class="form-select" id="outlierReason">
+          <option>Unexpected symptom escalation</option>
+          <option>New symptom not in original presentation</option>
+          <option>Medication side-effect suspected</option>
+          <option>Patient non-compliant — missed 2+ check-ins</option>
+          <option>AI diagnosis inconsistency</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes for follow-up team</label>
+        <textarea class="form-textarea" id="outlierNotes" placeholder="Additional context…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Urgency</label>
+        <div class="flex gap-8">
+          <button class="btn btn-ghost btn-sm" id="urgLow"  onclick="setUrgency('low')"   style="flex:1">🟢 Routine</button>
+          <button class="btn btn-outline btn-sm" id="urgMed" onclick="setUrgency('medium')" style="flex:1">🟡 Within 24h</button>
+          <button class="btn btn-ghost btn-sm" id="urgHigh" onclick="setUrgency('high')"  style="flex:1">🔴 Urgent</button>
+        </div>
+      </div>
+      <button class="btn btn-danger btn-full" onclick="submitOutlierFlag()">🚨 Flag &amp; schedule follow-up</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="app.js?v=3"></script>
+<script src="doctor.js?v=3"></script>
+</body>
+</html>

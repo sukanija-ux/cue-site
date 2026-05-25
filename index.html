@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cue — AI Clinical Assistant</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo">
+      <div class="nav-logo-mark">C</div>
+      Cue
+    </a>
+    <div class="nav-right">
+      <span style="font-size:.78rem;color:var(--subtle)">AI-powered clinical assistant</span>
+    </div>
+  </div>
+</nav>
+
+<div class="home-shell">
+  <div class="home-center">
+
+    <div style="margin-bottom:36px">
+      <div style="font-size:2rem;margin-bottom:12px">🩺</div>
+      <h1 style="font-size:1.5rem;margin-bottom:8px">Welcome to Cue</h1>
+      <p style="font-size:.9rem">AI pre-consultation, symptom tracking, and clinical oversight. Choose how you're accessing Cue today.</p>
+    </div>
+
+    <!-- Role cards -->
+    <div class="stack-10" style="text-align:left;margin-bottom:24px">
+
+      <div class="role-card" id="cardPatient" onclick="selectRole('patient')">
+        <div class="flex items-center gap-12">
+          <div class="role-icon">👤</div>
+          <div class="flex-1">
+            <div style="font-size:.9rem;font-weight:600;color:var(--text)">I'm a Patient</div>
+            <div style="font-size:.8rem;color:var(--muted);margin-top:2px">View your health history, complete pre-consultation, and track symptoms</div>
+          </div>
+          <div id="checkPatient" class="role-check"></div>
+        </div>
+      </div>
+
+      <div class="role-card" id="cardDoctor" onclick="selectRole('doctor')">
+        <div class="flex items-center gap-12">
+          <div class="role-icon">👨‍⚕️</div>
+          <div class="flex-1">
+            <div style="font-size:.9rem;font-weight:600;color:var(--text)">I'm a Healthcare Provider</div>
+            <div style="font-size:.8rem;color:var(--muted);margin-top:2px">Review patient consultations, confirm diagnoses, monitor symptom trajectories</div>
+          </div>
+          <div id="checkDoctor" class="role-check"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Patient login: name -->
+    <div id="patientLogin" style="display:none" class="stack-12">
+      <div class="form-group">
+        <label class="form-label">Your full name</label>
+        <input class="form-input" id="nameInput" placeholder="e.g. Sarah Johnson"
+          style="font-size:.95rem" autocomplete="name"
+          oninput="onNameInput(this.value)" onkeydown="if(event.key==='Enter')handleLogin()" />
+        <div class="form-hint">Your name links you to your patient record. It's never shared or stored beyond this session.</div>
+      </div>
+      <!-- Name-matched patient ID preview -->
+      <div id="idPreview" style="display:none;padding:10px 14px;border-radius:var(--r);background:var(--surface-2);border:1px solid var(--border)">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-xs" style="color:var(--subtle);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Linked patient ID</div>
+            <div class="font-mono font-600" id="idPreviewVal" style="font-size:.9rem;color:var(--text)"></div>
+          </div>
+          <span id="idPreviewBadge" class="badge badge-teal">Found</span>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="handleLogin()">Continue →</button>
+    </div>
+
+    <!-- Doctor login: ID -->
+    <div id="doctorLogin" style="display:none" class="stack-12">
+      <div class="form-group">
+        <label class="form-label">Provider ID</label>
+        <input class="form-input font-mono" id="drIdInput" placeholder="e.g. DR-1042-MB"
+          style="font-size:.9rem" onkeydown="if(event.key==='Enter')handleLogin()" />
+        <div class="form-hint">Your ID is issued by your clinic. It contains no personal information.</div>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="handleLogin()">Continue →</button>
+    </div>
+
+    <!-- Demo hint -->
+    <div id="demoHint" style="display:none;margin-top:8px">
+      <p style="font-size:.75rem;text-align:center;color:var(--subtle)">
+        Try: <button onclick="fillDemo('Sarah Johnson')" class="demo-name-btn">Sarah Johnson</button>
+        <button onclick="fillDemo('James Wilson')" class="demo-name-btn">James Wilson</button>
+        <button onclick="fillDemo('Emily Chen')" class="demo-name-btn">Emily Chen</button>
+      </p>
+    </div>
+
+    <div style="margin-top:32px;padding-top:20px;border-top:1px solid var(--border)">
+      <p style="font-size:.72rem;text-align:center;color:var(--subtle)">
+        🔒 HIPAA &amp; GDPR compliant · Names converted to opaque patient IDs · AES-256 encryption at rest · Open-source AI
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<!-- Cookie banner -->
+<div id="cookieBanner" style="position:fixed;bottom:0;left:0;right:0;z-index:200;background:var(--surface);border-top:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:20px">
+  <p style="font-size:.8rem;color:var(--muted)">🍪 Cue uses strictly necessary session cookies only. No tracking or advertising.</p>
+  <button class="btn btn-primary btn-sm" onclick="document.getElementById('cookieBanner').remove();localStorage.setItem('cue_cookie','ok')">Got it</button>
+</div>
+
+<style>
+.stack-10 > * + * { margin-top: 10px; }
+.role-check {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 1.5px solid var(--border); background: var(--surface); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+.demo-name-btn {
+  background: none; border: 1px solid var(--border); cursor: pointer;
+  font-size: .73rem; padding: 2px 8px; border-radius: 4px; color: var(--accent);
+  font-family: var(--font); margin: 0 2px;
+}
+.demo-name-btn:hover { background: var(--accent-bg); }
+</style>
+
+<script src="app.js?v=3"></script>
+<script>
+  let selectedRole = null;
+
+  if (localStorage.getItem('cue_cookie')) document.getElementById('cookieBanner')?.remove();
+
+  function selectRole(role) {
+    selectedRole = role;
+    ['patient','doctor'].forEach(r => {
+      const card  = document.getElementById('card'  + cap(r));
+      const check = document.getElementById('check' + cap(r));
+      card.classList.remove('selected');
+      check.innerHTML = '';
+      check.style.background = 'var(--surface)';
+      check.style.borderColor = 'var(--border)';
+    });
+    document.getElementById('card'  + cap(role)).classList.add('selected');
+    const check = document.getElementById('check' + cap(role));
+    check.style.background  = 'var(--accent)';
+    check.style.borderColor = 'var(--accent)';
+    check.innerHTML = '<svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+    document.getElementById('patientLogin').style.display = role === 'patient' ? '' : 'none';
+    document.getElementById('doctorLogin').style.display  = role === 'doctor'  ? '' : 'none';
+    document.getElementById('demoHint').style.display     = role === 'patient' ? '' : 'none';
+    document.getElementById('idPreview').style.display    = 'none';
+  }
+
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  function onNameInput(val) {
+    const preview = document.getElementById('idPreview');
+    if (val.trim().length < 2) { preview.style.display = 'none'; return; }
+    const key   = val.trim().toLowerCase();
+    const known = window.CUE && window.CUE.PATIENT_REGISTRY && window.CUE.PATIENT_REGISTRY[key];
+    const id    = window.CUE ? window.CUE.lookupPatient(val) : 'PT-????';
+    document.getElementById('idPreviewVal').textContent  = id;
+    document.getElementById('idPreviewBadge').textContent = known ? '● Found' : '● New patient';
+    document.getElementById('idPreviewBadge').className  = 'badge ' + (known ? 'badge-teal' : 'badge-amber');
+    preview.style.display = '';
+  }
+
+  function fillDemo(name) {
+    document.getElementById('nameInput').value = name;
+    onNameInput(name);
+  }
+
+  function handleLogin() {
+    if (!selectedRole) { alert('Please select a role.'); return; }
+    if (selectedRole === 'patient') {
+      const name = document.getElementById('nameInput').value.trim();
+      if (!name) { alert('Please enter your name.'); return; }
+      const firstName = name.split(' ')[0];
+      const id = window.CUE ? window.CUE.lookupPatient(name) : 'PT-0000-XX';
+      sessionStorage.setItem('cue_role',      'patient');
+      sessionStorage.setItem('cue_id',        id);
+      sessionStorage.setItem('cue_name',      name);
+      sessionStorage.setItem('cue_firstname', firstName);
+      window.location.href = 'patient.html';
+    } else {
+      const id = document.getElementById('drIdInput').value.trim();
+      if (!id) { alert('Please enter your Provider ID.'); return; }
+      sessionStorage.setItem('cue_role', 'doctor');
+      sessionStorage.setItem('cue_id',   id);
+      window.location.href = 'doctor.html';
+    }
+  }
+</script>
+</body>
+</html>

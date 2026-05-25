@@ -130,6 +130,20 @@ document.addEventListener('DOMContentLoaded', function() {
   // Render health history
   renderHealthHistory(id, fn);
 
+  // Restore consultation state from sessionStorage (persists across navigation)
+  var stored = _p.Store.get(id);
+  if (stored && stored.consultation && stored.consultation.diagnosis) {
+    diagResult = stored.consultation.diagnosis;
+    answers    = stored.consultation.answers || [];
+    unlockedTo[2] = true;
+    unlockedTo[3] = true;
+    unlockedTo[4] = stored.consultation.trackingEnabled || false;
+    // Re-render the summary so it's ready when patient visits sec2
+    renderReview();
+    // Show treatment panel
+    setTimeout(showMockTreatment, 50);
+  }
+
   // Start on section 0
   navToSection(0);
 
@@ -738,6 +752,9 @@ function saveEdit() {
   }
 
   _p.Audit.log('health_record_edited', ptId, { section: _editSection });
+
+  // Persist edits so they survive page navigation
+  _p.persistHealthEdit(ptId, h);
 
   // Re-render
   var fn = sessionStorage.getItem('cue_firstname') || h.firstName || '';

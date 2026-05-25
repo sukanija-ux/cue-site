@@ -27,15 +27,27 @@ function generateId(prefix) {
   return `${prefix}-${num}-${suf}`;
 }
 
-// ── Mock data store (in-memory, keyed by patient ID) ─────────
+// ── Data store — sessionStorage-backed, keyed by patient ID ──
 const Store = {
-  _data: {},
-  get(patientId) { return this._data[patientId] || (this._data[patientId] = { checkins: [], consultation: null }); },
-  save(patientId, key, value) { this.get(patientId)[key] = value; },
+  _data: (function() {
+    try { return JSON.parse(sessionStorage.getItem('cue_store') || '{}'); } catch(e) { return {}; }
+  })(),
+  get(patientId) {
+    if (!this._data[patientId]) this._data[patientId] = { checkins: [], consultation: null };
+    return this._data[patientId];
+  },
+  save(patientId, key, value) {
+    this.get(patientId)[key] = value;
+    this._persist();
+  },
   push(patientId, key, value) {
     const rec = this.get(patientId);
     if (!rec[key]) rec[key] = [];
     rec[key].push(value);
+    this._persist();
+  },
+  _persist() {
+    try { sessionStorage.setItem('cue_store', JSON.stringify(this._data)); } catch(e) {}
   }
 };
 
@@ -621,11 +633,24 @@ const DEFAULT_HEALTH_HISTORY = {
 };
 
 function getHealthHistory(ptId) {
+  // Restore any patient-edited overrides from sessionStorage
+  try {
+    const edits = JSON.parse(sessionStorage.getItem('cue_health_edits') || '{}');
+    if (edits[ptId]) Object.assign(HEALTH_HISTORY[ptId] || (HEALTH_HISTORY[ptId] = Object.assign({}, DEFAULT_HEALTH_HISTORY)), edits[ptId]);
+  } catch(e) {}
   return HEALTH_HISTORY[ptId] || DEFAULT_HEALTH_HISTORY;
 }
 
+function persistHealthEdit(ptId, data) {
+  try {
+    const edits = JSON.parse(sessionStorage.getItem('cue_health_edits') || '{}');
+    edits[ptId] = data;
+    sessionStorage.setItem('cue_health_edits', JSON.stringify(edits));
+  } catch(e) {}
+}
+
 // Export for page scripts
-window.CUE = { Session, Store, Audit, transcribeAudio, runDiagnosis, sleep, formatDate, severityColor, severityLabel, MOCK_PATIENTS, CHECKIN_QUESTIONS, PATIENT_REGISTRY, lookupPatient, getHealthHistory, HEALTH_HISTORY };
+window.CUE = { Session, Store, Audit, transcribeAudio, runDiagnosis, sleep, formatDate, severityColor, severityLabel, MOCK_PATIENTS, CHECKIN_QUESTIONS, PATIENT_REGISTRY, lookupPatient, getHealthHistory, persistHealthEdit, HEALTH_HISTORY };
 
 // Init on load
 document.addEventListener('DOMContentLoaded', () => Session.init());

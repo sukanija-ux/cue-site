@@ -485,7 +485,7 @@ function renderReview() {
     '</div>';
   }).join('');
 
-  document.getElementById('clinicalNotes').textContent = notes;
+  document.getElementById('clinicalNotes').innerHTML = notes;
 }
 
 // ── Submit ────────────────────────────────────────────────────
@@ -719,22 +719,22 @@ function addEditTravel() {
 }
 
 function saveEdit() {
-  var h = _p.getHealthHistory(_p.Session.id);
+  var ptId = _p.Session.id;
+
+  // Ensure the patient has a writable record in HEALTH_HISTORY (create if unknown)
+  if (!_p.HEALTH_HISTORY[ptId]) {
+    _p.HEALTH_HISTORY[ptId] = JSON.parse(JSON.stringify(_editHistory));
+  }
+
+  var h = _p.HEALTH_HISTORY[ptId]; // always the live reference
 
   if (_editSection === 'profile') {
     h.bloodType = document.getElementById('editBloodType').value;
     h.ageGroup  = document.getElementById('editAgeGroup').value;
   } else {
-    // Copy all edited arrays/objects back
     ['allergies','vaccinations','chronicConditions','currentMedications','recentTravels'].forEach(function(field) {
       if (_editHistory[field] !== undefined) h[field] = _editHistory[field];
     });
-  }
-
-  // Also update the canonical HEALTH_HISTORY store in window.CUE
-  var ptId = _p.Session.id;
-  if (_p.HEALTH_HISTORY[ptId]) {
-    Object.assign(_p.HEALTH_HISTORY[ptId], h);
   }
 
   _p.Audit.log('health_record_edited', ptId, { section: _editSection });

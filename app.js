@@ -146,145 +146,409 @@ async function transcribeAudio(lang = 'auto', questionIndex = 0) {
 // HuggingFace: BioMistral/BioMistral-7B
 async function runDiagnosis(answers) {
   await sleep(1800 + Math.random() * 1200);
-  const text = answers.map(a => a.text).join(' ').toLowerCase();
 
-  // Extract structured features from answers
-  const feat = {
-    headache:     /headache|migraine|temple|throbbing|head pain|behind.*eye/.test(text),
-    urti:         /sore throat|fever|tonsil|pharynx|swallow|chills|strep/.test(text),
-    gastro:       /stomach|nausea|vomit|diarrh|cramp|abdom|bowel/.test(text),
-    chest:        /chest|cardiac|heart|palpitat|breath|dyspnoea/.test(text),
-    musculo:      /knee|joint|sprain|muscle|back pain|ankle|twisted/.test(text),
-    uti:          /urine|urinary|burning.*pee|frequent.*toilet|bladder/.test(text),
+  // ── Per-answer text (not one giant blob) — preserves question context ──
+  const answerTexts = answers.map(a => (a.text || '').toLowerCase());
+  const fullText    = answerTexts.join(' ');
 
-    // Red flag signals from Q9 (red flag screen)
-    redFlagChest: /chest pain|tightness.*chest/.test(text),
-    redFlagNeuro: /sudden.*headache|worst.*ever|weakness|numb|speech|facial droop/.test(text),
-    redFlagGI:    /blood.*stool|black stool|melen|haematemesis|blood.*vomit/.test(text),
-    redFlagResp:  /can't breathe|difficulty breathing|unable.*breathe/.test(text),
+  // ── Negation-aware signal tester ───────────────────────────────────────
+  // Tests that a pattern matches AND is not immediately preceded by a
+  // negation word ("no", "not", "without", "never", "denies", etc.)
+  function sig(pattern, text) {
+    text = text || fullText;
+    const negation = /\b(no|not|without|never|denies|deny|absent|negative for|haven'?t|hasn'?t)\b.{0,30}$/i;
+    const rx = typeof pattern === 'string' ? new RegExp(pattern, 'i') : pattern;
+    let found = false;
+    // Scan sentence by sentence to keep negation scoping tight
+    const sentences = text.split(/[.!?;]+/);
+    for (const sent of sentences) {
+      const m = rx.exec(sent);
+      if (!m) continue;
+      const before = sent.slice(0, m.index);
+      if (negation.test(before)) continue; // negated
+      found = true;
+      break;
+    }
+    return found;
+  }
+
+  // ── Duration / severity extraction ─────────────────────────────────────
+  const durationMatch = fullText.match(/(\d+)\s*(day|hour|week|month)/);
+  const durationStr   = durationMatch
+    ? `${durationMatch[1]} ${durationMatch[2]}${+durationMatch[1] > 1 ? 's' : ''}`
+    : 'not specified';
+  // Severity: look for explicit "X/10" or "X out of 10"
+  const sevMatch = fullText.match(/\b([6-9]|10)\s*(?:\/|out\s+of)\s*10/);
+  const isSevere = !!sevMatch;
+  const sevScore = sevMatch ? parseInt(sevMatch[1]) : 5;
+
+  // ── Score each diagnostic category ────────────────────────────────────
+  // We score every category, then pick the winner by highest score.
+  // Each signal that fires adds to the raw score; strong/specific signals
+  // are worth more. Scores are normalised to confidences that sum to 100.
+
+  const scores = {
+    headache: 0, urti: 0, gastro: 0, chest: 0, musculo: 0, uti: 0,
   };
 
-  // Collect any triggered red flags
+  // Headache signals
+  if (sig(/headache|head\s*pain|pain.*head/))              scores.headache += 10;
+  if (sig(/migraine/))                                     scores.headache += 8;
+  if (sig(/temple|behind.*eye|periorbital/))               scores.headache += 5;
+  if (sig(/throb|pulsating|pulsing/))                      scores.headache += 4;
+  if (sig(/nausea|vomit/) && scores.headache > 0)          scores.headache += 3;
+  if (sig(/light.*sensitive|photophobia|sound.*sensitive|phonophobia/)) scores.headache += 4;
+  if (sig(/aura|visual|zigzag|blind\s*spot/))              scores.headache += 3;
+
+  // URTI signals
+  if (sig(/sore\s*throat|throat.*pain|pain.*throat/))      scores.urti += 10;
+  if (sig(/fever|temperature|pyrexia/) && !sig(/no fever/)) scores.urti += 6;
+  if (sig(/swallow.*pain|painful.*swallow|odynophagia/))   scores.urti += 5;
+  if (sig(/tonsil|pharynx|strep/))                         scores.urti += 5;
+  if (sig(/cough|runny\s*nose|congestion|rhinorrhoea/))    scores.urti += 3;
+  if (sig(/chills|sweating|rigors/))                       scores.urti += 3;
+  if (sig(/lymph|glands.*neck|neck.*swollen/))             scores.urti += 3;
+  if (sig(/white\s*spots|exudate|pus.*tonsil/))            scores.urti += 6;
+  if (sig(/flu|influenza|myalgia|body\s*ache/))            scores.urti += 3;
+
+  // Gastro signals
+  if (sig(/stomach\s*pain|abdom.*pain|belly\s*pain|tummy/)) scores.gastro += 8;
+  if (sig(/diarrh|loose\s*stool|watery\s*stool/))          scores.gastro += 7;
+  if (sig(/vomit|vomiting/) && scores.gastro > 0)          scores.gastro += 5;
+  if (sig(/nausea/) && scores.gastro > 0)                  scores.gastro += 3;
+  if (sig(/cramp|cramps|colicky/))                         scores.gastro += 4;
+  if (sig(/bowel|stool|diarrh/))                           scores.gastro += 3;
+  if (sig(/food\s*poison|ate\s*out|dodgy.*food|contact.*ill/)) scores.gastro += 4;
+
+  // Chest / cardiac signals
+  if (sig(/chest\s*pain|pain.*chest|tightness.*chest/))   scores.chest += 12;
+  if (sig(/palpitat|racing\s*heart|heart\s*pound/))       scores.chest += 7;
+  if (sig(/short.*breath|difficulty.*breath|breathless|dyspnoea/)) scores.chest += 7;
+  if (sig(/wheez|asthma/))                                scores.chest += 5;
+  if (sig(/cardiac|heart\s*attack|angina/))               scores.chest += 8;
+  if (sig(/leg.*swollen|ankle.*swollen/) && scores.chest > 0) scores.chest += 4;
+
+  // Musculoskeletal signals
+  if (sig(/knee|ankle|wrist|elbow|shoulder|hip/))         scores.musculo += 7;
+  if (sig(/sprain|twist|strain|pulled\s*muscle/))         scores.musculo += 8;
+  if (sig(/back\s*pain|lower\s*back/))                    scores.musculo += 7;
+  if (sig(/joint.*pain|pain.*joint/))                     scores.musculo += 5;
+  if (sig(/swollen.*joint|joint.*swollen/))               scores.musculo += 4;
+  if (sig(/fell|fall|injury|accident|trauma/))            scores.musculo += 4;
+
+  // UTI signals
+  if (sig(/burning.*pee|burning.*urinat|pain.*urinat/))   scores.uti += 10;
+  if (sig(/frequent.*toilet|urgency.*urinat|urinary\s*urgency/)) scores.uti += 7;
+  if (sig(/urine|urinary/))                               scores.uti += 3;
+  if (sig(/bladder|cystitis/))                            scores.uti += 7;
+  if (sig(/cloudy.*urine|blood.*urine|haematuria/))       scores.uti += 6;
+  if (sig(/loin\s*pain|flank\s*pain|kidney/))             scores.uti += 5;
+
+  // ── Find winning category ──────────────────────────────────────────────
+  const winner = Object.entries(scores).sort((a, b) => b[1] - a[1])[0];
+  const category = winner[1] >= 5 ? winner[0] : 'fallback';
+
+  // ── Red flags (negation-aware) ─────────────────────────────────────────
   const redFlags = [];
-  if (feat.redFlagChest) redFlags.push({ label: '🚨 Chest pain reported — urgent cardiac rule-out required (ECG, troponin)', severity: 'urgent' });
-  if (feat.redFlagNeuro) redFlags.push({ label: '🚨 Sudden severe headache — subarachnoid haemorrhage must be excluded urgently', severity: 'urgent' });
-  if (feat.redFlagGI)    redFlags.push({ label: '🚨 Blood in stool/vomit — urgent GI review and bloods required', severity: 'urgent' });
-  if (feat.redFlagResp)  redFlags.push({ label: '🚨 Respiratory distress reported — O₂ saturation and CXR required', severity: 'urgent' });
+  if (sig(/chest\s*pain|tightness.*chest/))
+    redFlags.push({ label: '🚨 Chest pain reported — urgent cardiac rule-out required (ECG, troponin)', severity: 'urgent' });
+  if (sig(/sudden.*headache|worst.*headache.*ever|thunderclap/))
+    redFlags.push({ label: '🚨 Sudden severe headache — subarachnoid haemorrhage must be excluded urgently', severity: 'urgent' });
+  if (sig(/blood.*stool|black.*stool|melaena|haematemesis|blood.*vomit/))
+    redFlags.push({ label: '🚨 Blood in stool/vomit — urgent GI review and bloods required', severity: 'urgent' });
+  if (sig(/can'?t\s*breathe|unable.*breathe|respiratory\s*distress/))
+    redFlags.push({ label: '🚨 Respiratory distress reported — O₂ saturation and CXR required', severity: 'urgent' });
+  if (sig(/weakness|numbness|facial\s*droop|slurred\s*speech/))
+    redFlags.push({ label: '🚨 Neurological deficit — urgent stroke screen required (FAST assessment)', severity: 'urgent' });
 
-  // Extract duration and severity from free text
-  const durationMatch = text.match(/(\d+)\s*(day|hour|week|month)/);
-  const durationStr   = durationMatch ? `${durationMatch[1]} ${durationMatch[2]}${+durationMatch[1]>1?'s':''}` : 'not specified';
-  const severityMatch = text.match(/\b([5-9]|10)\s*(out of|\/)\s*10|\b([5-9]|10)\b.*pain/);
-  const isSevere      = !!severityMatch;
+  // ── Build result per category ──────────────────────────────────────────
 
-  if (feat.headache) {
-    const hasAura   = /visual|zigzag|flicker|aura|blind spot/.test(text);
-    const bilateral = /both sides|bilateral/.test(text);
-    const bandlike  = /band|tight|pressure.*head|squeezing/.test(text);
+  if (category === 'headache') {
+    const hasAura   = sig(/visual|zigzag|flicker|aura|blind\s*spot/);
+    const bilateral = sig(/both\s*sides|bilateral|both\s*temples/);
+    const bandlike  = sig(/band|pressure.*head|tight.*head|squeezing/);
+    const photophobia = sig(/light.*sensitive|photophobia/);
+    const phonophobia = sig(/sound.*sensitive|phonophobia/);
+    const nausea    = sig(/nausea|sick|vomit/);
+    // Dynamic confidence: migrate scores to percentages
+    let migraineScore = 40;
+    if (!bilateral)   migraineScore += 15;
+    if (!bandlike)    migraineScore += 10;
+    if (photophobia)  migraineScore += 10;
+    if (phonophobia)  migraineScore += 5;
+    if (nausea)       migraineScore += 8;
+    if (hasAura)      migraineScore += 5;
+    if (isSevere)     migraineScore += 7;
+    let tensionScore  = 100 - migraineScore - 6;
+    const clusterScore = 6;
+    if (bandlike) { tensionScore += 25; migraineScore -= 25; }
+    if (bilateral){ tensionScore += 15; migraineScore -= 15; }
+    // Clamp
+    migraineScore = Math.max(5, Math.min(90, migraineScore));
+    tensionScore  = Math.max(5, Math.min(90, tensionScore));
+    const total = migraineScore + tensionScore + clusterScore;
+    const norm  = v => Math.round(v / total * 100);
+
     return {
       symptoms: [
         { label: `${bilateral ? 'Bilateral' : 'Unilateral'} ${bandlike ? 'pressure-type' : 'throbbing'} headache`, severity: isSevere ? 'severe' : 'moderate', duration: durationStr },
-        { label: 'Photophobia / phonophobia', severity: /light|sound|sensitive/.test(text) ? 'moderate' : 'not reported', duration: durationStr },
-        { label: 'Nausea', severity: /nausea|sick|vomit/.test(text) ? 'mild' : 'not reported', duration: durationStr },
+        { label: 'Photophobia / phonophobia', severity: photophobia || phonophobia ? 'moderate' : 'not reported', duration: durationStr },
+        { label: 'Nausea', severity: nausea ? 'mild' : 'not reported', duration: durationStr },
       ],
       diagnoses: bandlike
         ? [
-            { name: 'Tension-type headache', icd: 'G44.2', confidence: 74, rationale: 'Bilateral, pressure/band-like quality without nausea' },
-            { name: 'Medication-overuse headache', icd: 'G44.4', confidence: 16, rationale: 'If analgesics used >10 days/month' },
-            { name: 'Migraine without aura', icd: 'G43.0', confidence: 10, rationale: 'Less likely given bilateral, non-pulsating quality' },
+            { name: 'Tension-type headache', icd: 'G44.2', confidence: norm(tensionScore), rationale: 'Pressure/band-like quality' + (bilateral ? ', bilateral distribution' : '') + ' — ICHD-3 tension-type criteria met' },
+            { name: 'Medication-overuse headache', icd: 'G44.4', confidence: norm(migraineScore * 0.3), rationale: 'If analgesics taken >10 days/month; review medication history' },
+            { name: `Migraine ${hasAura ? 'with aura' : 'without aura'}`, icd: hasAura ? 'G43.1' : 'G43.0', confidence: norm(migraineScore * 0.7), rationale: 'Less likely given non-pulsating, bilateral quality' },
           ]
         : [
-            { name: `Migraine ${hasAura ? 'with aura' : 'without aura'}`, icd: hasAura ? 'G43.1' : 'G43.0', confidence: 79, rationale: 'Unilateral pulsating pain, photophobia, nausea — meets ICHD-3 criteria' },
-            { name: 'Tension-type headache', icd: 'G44.2', confidence: 15, rationale: 'Consider if pulsating quality absent on exam' },
-            { name: 'Cluster headache', icd: 'G44.0', confidence: 6, rationale: 'Less likely — no periorbital tearing or rhinorrhoea reported' },
+            { name: `Migraine ${hasAura ? 'with aura' : 'without aura'}`, icd: hasAura ? 'G43.1' : 'G43.0', confidence: norm(migraineScore), rationale: `Unilateral${!bilateral?'':''} pulsating pain${photophobia?', photophobia':''}${phonophobia?', phonophobia':''}${nausea?', nausea':''} — ICHD-3 criteria` + (hasAura ? ' — aura features reported' : '') },
+            { name: 'Tension-type headache', icd: 'G44.2', confidence: norm(tensionScore), rationale: 'Cannot exclude without clinical examination; consider if pulsating quality absent on exam' },
+            { name: 'Cluster headache', icd: 'G44.0', confidence: norm(clusterScore), rationale: 'Less likely — no periorbital tearing, rhinorrhoea, or autonomic features reported' },
           ],
-      notes: buildNotes(bandlike ? 'Tension-type headache' : `Migraine ${hasAura?'with':'without'} aura`, answers, 'neurology'),
+      notes: buildNotes(bandlike ? 'Tension-type headache' : `Migraine ${hasAura ? 'with' : 'without'} aura`, answers, 'neurology'),
       redFlags,
       checkinQuestions: CHECKIN_QUESTIONS.headache,
+      conditionKey: 'headache',
     };
   }
 
-  if (feat.urti) {
-    const exudates = /white spots|pus|exudate|tonsil/.test(text);
-    const allergy  = /penicillin|allerg/.test(text);
+  if (category === 'urti') {
+    const exudates  = sig(/white\s*spots|pus|exudate|tonsil.*pus/);
+    const highFever  = sig(/38\.[5-9]|39\.|40\.|\b39\b|\b40\b/);
+    const cough      = sig(/cough/);
+    const flu        = sig(/myalgia|body\s*ache|flu|influenza/);
+    const monoSigns  = sig(/widespread.*lymph|spleen|mono|glandular\s*fever/);
+    const allergy    = sig(/penicillin|allerg/);
+    // Centor-like scoring for strep vs viral
+    let centorScore = 0;
+    if (exudates)  centorScore += 1;
+    if (highFever) centorScore += 1;
+    if (!cough)    centorScore += 1;
+    if (sig(/tender.*gland|lymph.*tender|anterior.*lymph/)) centorScore += 1;
+    // Confidence breakdown
+    const isStrep     = centorScore >= 3;
+    const isMono      = monoSigns;
+    let viralConf  = isStrep ? 18 : 68;
+    let strepConf  = isStrep ? 62 : 22;
+    let monoConf   = isMono  ? 20 : 5;
+    let fluConf    = flu     ? 12 : 5;
+    const total = viralConf + strepConf + monoConf + (flu ? fluConf : 0);
+    const norm  = v => Math.round(v / total * 100);
+    const dxList = isStrep
+      ? [
+          { name: 'Streptococcal pharyngitis (Group A)', icd: 'J02.0', confidence: norm(strepConf), rationale: `Centor score ${centorScore}/4 — exudates${exudates?'':''}, fever, no cough${centorScore>=3?' — antibiotic likely indicated':''}`  },
+          isMono
+            ? { name: 'Infectious mononucleosis (EBV)', icd: 'B27.0', confidence: norm(monoConf), rationale: 'Lymphadenopathy pattern or systemic features — monospot / EBV serology recommended' }
+            : { name: 'Viral pharyngitis', icd: 'J02.9', confidence: norm(viralConf), rationale: 'Viral aetiology cannot be excluded without throat swab' },
+          { name: flu ? 'Influenza A/B' : 'Viral URTI', icd: flu ? 'J11.1' : 'J06.9', confidence: norm(flu ? fluConf : viralConf * 0.4), rationale: flu ? 'Prominent myalgia and systemic features — consider rapid flu test' : 'Less likely given Centor criteria' },
+        ]
+      : [
+          { name: 'Viral upper respiratory tract infection', icd: 'J06.9', confidence: norm(viralConf), rationale: `Acute onset, ${highFever?'fever, ':''} sore throat without exudates — Centor score ${centorScore}/4, most likely viral` },
+          { name: 'Streptococcal pharyngitis (Group A)', icd: 'J02.0', confidence: norm(strepConf), rationale: `Centor score ${centorScore}/4 — throat swab recommended if symptoms worsen or persist >48 h` },
+          { name: flu ? 'Influenza A/B' : 'Infectious mononucleosis (EBV)', icd: flu ? 'J11.1' : 'B27.0', confidence: norm(flu ? fluConf : monoConf), rationale: flu ? 'Systemic/myalgia features — consider rapid flu test' : 'Consider if lymphadenopathy widespread or fatigue prominent' },
+        ];
+
     return {
       symptoms: [
         { label: 'Sore throat — odynophagia on swallowing', severity: isSevere ? 'severe' : 'moderate', duration: durationStr },
-        { label: 'Pyrexia', severity: /38\.|39\.|40\.|\bfever\b/.test(text) ? 'moderate' : 'mild', duration: durationStr },
-        { label: 'Cervical lymphadenopathy', severity: /glands|lymph|neck.*swollen/.test(text) ? 'mild' : 'not reported', duration: durationStr },
+        { label: 'Pyrexia', severity: highFever ? 'severe' : sig(/fever/) ? 'moderate' : 'not reported', duration: durationStr },
+        { label: 'Cervical lymphadenopathy', severity: sig(/glands|lymph|neck.*swollen/) ? 'mild' : 'not reported', duration: durationStr },
       ],
-      diagnoses: exudates
-        ? [
-            { name: 'Streptococcal pharyngitis (Group A)', icd: 'J02.0', confidence: 68, rationale: 'Tonsillar exudates, fever, no cough — Centor score ≥3' },
-            { name: 'Infectious mononucleosis (EBV)', icd: 'B27.0', confidence: 20, rationale: 'Consider if lymphadenopathy widespread or splenomegaly' },
-            { name: 'Viral pharyngitis', icd: 'J02.9', confidence: 12, rationale: 'Cannot exclude without throat swab' },
-          ]
-        : [
-            { name: 'Viral upper respiratory tract infection', icd: 'J06.9', confidence: 72, rationale: 'Acute onset, fever, sore throat without exudates — most likely viral aetiology' },
-            { name: 'Streptococcal pharyngitis', icd: 'J02.0', confidence: 20, rationale: 'Centor criteria: throat swab recommended if ≥3 criteria met' },
-            { name: 'Influenza A/B', icd: 'J11.1', confidence: 8, rationale: 'Consider if myalgia and systemic features prominent' },
-          ],
-      notes: buildNotes('Viral URTI', answers, 'general practice'),
-      redFlags: allergy ? [{ label: 'ℹ️ Penicillin allergy documented — use macrolide if antibiotic indicated', severity: 'info' }, ...redFlags] : redFlags,
+      diagnoses: dxList,
+      notes: buildNotes(isStrep ? 'Streptococcal pharyngitis' : 'Viral URTI', answers, 'general practice'),
+      redFlags: allergy ? [{ label: 'ℹ️ Penicillin allergy documented — use macrolide (clarithromycin) if antibiotic indicated', severity: 'info' }, ...redFlags] : redFlags,
       checkinQuestions: CHECKIN_QUESTIONS.urti,
+      conditionKey: 'urti',
     };
   }
 
-  if (feat.gastro) {
-    const rightIliac = /right.*lower|rlq|right iliac/.test(text);
-    const bloodStool = /blood.*stool|red.*stool|black stool/.test(text);
+  if (category === 'gastro') {
+    const rightIliac  = sig(/right.*lower|rlq|right\s*iliac|pain.*right\s*side.*lower/);
+    const bloodStool  = sig(/blood.*stool|red.*stool|black\s*stool|melaena/);
+    const dietary     = sig(/food\s*poison|ate\s*out|dodgy.*food|takeaway|restaurant/);
+    const contact     = sig(/contact.*ill|someone.*ill|partner.*ill|child.*ill/);
+    const vomiting    = sig(/vomit/);
+    const diarrhoea   = sig(/diarrh|loose\s*stool|watery/);
+    const chronicHist = sig(/recurring|happens\s*again|before.*similar|stress.*stomach/);
+    // Confidence scoring
+    let gasConf  = 55;
+    let ibsConf  = chronicHist ? 25 : 10;
+    let appConf  = rightIliac  ? 30 : 5;
+    let foodConf = (dietary || contact) ? 20 : 8;
+    if (vomiting)   gasConf += 5;
+    if (diarrhoea)  gasConf += 8;
+    if (rightIliac) { gasConf -= 20; appConf += 15; }
+    const total = gasConf + ibsConf + appConf + foodConf;
+    const norm  = v => Math.max(0, Math.round(v / total * 100));
+    const dxList = rightIliac
+      ? [
+          { name: 'Appendicitis (urgent exclusion required)', icd: 'K37', confidence: norm(appConf), rationale: 'Pain localised to right iliac fossa — Alvarado score calculation required; surgical review urgent' },
+          { name: 'Acute infectious gastroenteritis', icd: 'A09', confidence: norm(gasConf), rationale: 'Vomiting/diarrhoea pattern consistent with gastroenteritis, but RIF pain must be excluded first' },
+          { name: 'Mesenteric adenitis', icd: 'I88.0', confidence: norm(ibsConf), rationale: 'RIF pain with infective features — commoner in children/young adults; CT/USS may be needed' },
+        ]
+      : [
+          { name: 'Acute infectious gastroenteritis', icd: 'A09', confidence: norm(gasConf), rationale: `Acute onset${dietary ? ' — dietary source probable' : contact ? ' — likely person-to-person transmission' : ''}, self-limiting pattern expected` },
+          { name: chronicHist ? 'Irritable bowel syndrome — acute flare' : 'Food poisoning (Salmonella / Campylobacter)', icd: chronicHist ? 'K58.0' : 'A02.9', confidence: norm(chronicHist ? ibsConf : foodConf), rationale: chronicHist ? 'Recurring pattern — IBS exacerbation possible; dietary/stress diary advised' : 'Consider stool culture if symptoms persist >48 h or fever develops' },
+          { name: 'Viral gastroenteritis (norovirus)', icd: 'A08.1', confidence: norm(foodConf * 0.7), rationale: 'Sudden onset vomiting/diarrhoea without blood — norovirus cluster common in communities' },
+        ];
+
     return {
       symptoms: [
-        { label: 'Colicky abdominal pain', severity: isSevere ? 'severe' : 'moderate', duration: durationStr },
-        { label: 'Nausea and vomiting', severity: /vomit/.test(text) ? 'moderate' : 'mild', duration: durationStr },
-        { label: 'Diarrhoea', severity: /diarrh|loose.*stool|watery/.test(text) ? 'moderate' : 'not reported', duration: durationStr },
+        { label: `Colicky abdominal pain${rightIliac ? ' — right iliac fossa' : ''}`, severity: isSevere ? 'severe' : 'moderate', duration: durationStr },
+        { label: 'Nausea and vomiting', severity: vomiting ? 'moderate' : 'mild', duration: durationStr },
+        { label: 'Diarrhoea', severity: diarrhoea ? 'moderate' : 'not reported', duration: durationStr },
       ],
-      diagnoses: [
-        { name: 'Acute infectious gastroenteritis', icd: 'A09', confidence: rightIliac ? 52 : 71, rationale: `Acute onset${/contact|partner|ate out/.test(text)?' with likely contact/dietary source':''}, self-limiting pattern` },
-        { name: rightIliac ? 'Appendicitis (rule out urgently)' : 'Irritable bowel syndrome — acute episode', icd: rightIliac ? 'K37' : 'K58.0', confidence: rightIliac ? 33 : 19, rationale: rightIliac ? 'Pain migration to RLQ — Alvarado score calculation required' : 'Recurring pattern with stress/dietary correlation' },
-        { name: 'Food poisoning (Salmonella / Campylobacter)', icd: 'A02.9', confidence: 10, rationale: 'Consider stool culture if symptoms persist >48h or systemic features' },
-      ],
-      notes: buildNotes('Acute infectious gastroenteritis', answers, 'general practice'),
+      diagnoses: dxList,
+      notes: buildNotes(rightIliac ? 'Right iliac fossa pain — appendicitis excluded' : 'Acute infectious gastroenteritis', answers, 'general practice'),
       redFlags: [
-        ...(rightIliac ? [{ label: '🚨 Pain in right iliac fossa — appendicitis must be urgently excluded. Consider surgical review.', severity: 'urgent' }] : []),
-        ...(bloodStool  ? [{ label: '🚨 Blood in stool reported — urgent review for GI bleeding source', severity: 'urgent' }] : []),
+        ...(rightIliac ? [{ label: '🚨 Pain in right iliac fossa — appendicitis must be urgently excluded. Surgical review required.', severity: 'urgent' }] : []),
+        ...(bloodStool  ? [{ label: '🚨 Blood in stool reported — urgent review for GI bleeding source; FBC, CRP, stool culture', severity: 'urgent' }] : []),
         ...redFlags,
       ],
       checkinQuestions: CHECKIN_QUESTIONS.gastro,
+      conditionKey: 'gastro',
     };
   }
 
-  if (feat.musculo) {
+  if (category === 'chest') {
+    const pleuritic   = sig(/worse.*breath|pleuritic|sharp.*chest/);
+    const exertional  = sig(/worse.*exercise|exertion|walking|climbing/);
+    const palpitations = sig(/palpitat|racing|irregular.*heart|skipping/);
+    const wheeze      = sig(/wheez|asthma|inhaler/);
+    const cough       = sig(/cough/);
+    // Cardiac vs respiratory differentiation
+    let acsConf  = exertional ? 45 : 20;
+    let peConf   = pleuritic  ? 25 : 8;
+    let msConf   = 20;  // musculoskeletal chest pain (most common)
+    let asthConf = wheeze ? 25 : 5;
+    let palpConf = palpitations ? 30 : 5;
+    const total = acsConf + peConf + msConf + (wheeze ? asthConf : palpConf);
+    const norm  = v => Math.max(0, Math.round(v / total * 100));
+    const dxList = palpitations && !sig(/chest\s*pain/)
+      ? [
+          { name: 'Palpitations — benign cause (ectopic beats / SVT)', icd: 'R00.2', confidence: 60, rationale: 'Racing/irregular heartbeat without associated chest pain — ECG required to characterise rhythm' },
+          { name: 'Atrial fibrillation', icd: 'I48.9', confidence: 25, rationale: 'New-onset AF must be excluded with 12-lead ECG; especially if irregular rhythm' },
+          { name: 'Anxiety / panic disorder', icd: 'F41.0', confidence: 15, rationale: 'Palpitations with autonomic features — consider if associated with anxiety' },
+        ]
+      : wheeze
+      ? [
+          { name: 'Acute asthma exacerbation', icd: 'J45.901', confidence: 55, rationale: 'Wheeze and breathlessness — PEFR measurement required; step-up bronchodilator therapy' },
+          { name: 'Acute bronchitis', icd: 'J20.9', confidence: 30, rationale: 'Cough with wheeze — CXR if consolidation suspected' },
+          { name: 'Cardiac asthma (LVF)', icd: 'I50.1', confidence: 15, rationale: 'Nocturnal wheeze with exertional dyspnoea — BNP and echo if suspected' },
+        ]
+      : [
+          { name: 'Musculoskeletal chest pain', icd: 'M79.3', confidence: norm(msConf + 10), rationale: 'Commonest cause of chest pain in primary care; reproducible on palpation' },
+          { name: exertional ? 'Acute coronary syndrome (urgent exclusion)' : 'Pleuritis / pulmonary embolism screen', icd: exertional ? 'I24.9' : 'J90', confidence: norm(exertional ? acsConf : peConf + 10), rationale: exertional ? 'Exertional chest pain — urgent 12-lead ECG and troponin required' : 'Pleuritic character — D-dimer, Wells score; CXR' },
+          { name: 'GORD / oesophageal spasm', icd: 'K21.0', confidence: norm(acsConf * 0.5), rationale: 'Non-exertional chest pain relieved by antacids — consider trial of PPI' },
+        ];
+
     return {
       symptoms: [
-        { label: 'Joint pain and swelling', severity: 'moderate', duration: durationStr },
-        { label: 'Limited range of motion', severity: 'mild', duration: durationStr },
+        { label: `Chest pain${pleuritic?' — pleuritic character':exertional?' — exertional':''}`, severity: isSevere ? 'severe' : 'moderate', duration: durationStr },
+        { label: 'Dyspnoea', severity: sig(/breathless|short.*breath/) ? 'moderate' : 'not reported', duration: durationStr },
+        { label: 'Palpitations', severity: palpitations ? 'moderate' : 'not reported', duration: durationStr },
       ],
-      diagnoses: [
-        { name: 'Acute ligamentous sprain', icd: 'S93.4', confidence: 70, rationale: 'Mechanism of injury consistent with inversion/eversion sprain' },
-        { name: 'Fracture (rule out)', icd: 'S82.9', confidence: 20, rationale: 'Ottawa rules should be applied to determine need for X-ray' },
-        { name: 'Meniscal injury', icd: 'S83.2', confidence: 10, rationale: 'Consider if joint line tenderness or locking reported' },
+      diagnoses: dxList,
+      notes: buildNotes('Chest pain — cardiac and PE excluded pending tests', answers, 'cardiology'),
+      redFlags: [
+        { label: '🚨 Chest pain requires urgent 12-lead ECG and troponin to exclude ACS', severity: 'urgent' },
+        ...(pleuritic ? [{ label: '🚨 Pleuritic features — Wells score for PE; D-dimer if low/intermediate probability', severity: 'urgent' }] : []),
+        ...redFlags,
       ],
-      notes: buildNotes('Acute ligamentous sprain', answers, 'musculoskeletal'),
-      redFlags,
-      checkinQuestions: CHECKIN_QUESTIONS.musculo,
+      checkinQuestions: CHECKIN_QUESTIONS.default,
+      conditionKey: 'chest',
     };
   }
 
-  // Fallback
+  if (category === 'uti') {
+    const upperTract = sig(/loin\s*pain|flank\s*pain|kidney|back.*pain.*fever|fever.*back.*pain/);
+    const haematuria = sig(/blood.*urine|haematuria|cloudy\s*urine|pink\s*urine/);
+    const male       = sig(/\bhe\b|male|man|his\b/);  // rough proxy; production would use profile
+    return {
+      symptoms: [
+        { label: 'Dysuria — burning on urination', severity: isSevere ? 'severe' : 'moderate', duration: durationStr },
+        { label: 'Urinary frequency / urgency', severity: sig(/frequent|urgency/) ? 'moderate' : 'mild', duration: durationStr },
+        { label: haematuria ? 'Haematuria' : 'Lower abdominal discomfort', severity: haematuria ? 'moderate' : 'mild', duration: durationStr },
+      ],
+      diagnoses: upperTract
+        ? [
+            { name: 'Pyelonephritis (upper UTI)', icd: 'N10', confidence: 65, rationale: 'Loin pain, fever and urinary symptoms — urine MC&S essential; IV antibiotics if systemically unwell' },
+            { name: 'Cystitis (lower UTI)', icd: 'N30.0', confidence: 25, rationale: 'Lower UTI cannot be excluded without urine dip; ascended infection possible' },
+            { name: 'Renal calculus', icd: 'N20.0', confidence: 10, rationale: 'Loin-to-groin pain pattern — urinalysis, KUB X-ray or CT KUB' },
+          ]
+        : male
+        ? [
+            { name: 'Urethritis / prostatitis', icd: 'N41.0', confidence: 55, rationale: 'UTI in males warrants further evaluation; STI screen if sexually active' },
+            { name: 'Cystitis (lower UTI)', icd: 'N30.0', confidence: 35, rationale: 'Less common in males — urine MC&S; consider structural cause' },
+            { name: 'Urethral stricture', icd: 'N35.9', confidence: 10, rationale: 'If poor stream or hesitancy reported — urology referral' },
+          ]
+        : [
+            { name: 'Cystitis (lower UTI)', icd: 'N30.0', confidence: 72, rationale: 'Classic triad of dysuria, frequency and urgency — urine dip; empirical antibiotic treatment' },
+            { name: 'Urethritis (STI screen)', icd: 'N34.1', confidence: 18, rationale: 'Consider if sexually active or discharge reported — NAAT/STI screen' },
+            { name: 'Interstitial cystitis', icd: 'N30.1', confidence: 10, rationale: 'If recurrent with negative cultures — cystoscopy referral' },
+          ],
+      notes: buildNotes(upperTract ? 'Pyelonephritis' : 'Cystitis (lower UTI)', answers, 'general practice'),
+      redFlags: [
+        ...(upperTract ? [{ label: '🚨 Upper tract signs (loin pain + fever) — urgent urine MC&S and consider IV antibiotics if systemically unwell', severity: 'urgent' }] : []),
+        ...(haematuria ? [{ label: '⚠️ Haematuria noted — urine microscopy required; consider flexible cystoscopy if >40 y/o', severity: 'warning' }] : []),
+        ...redFlags,
+      ],
+      checkinQuestions: CHECKIN_QUESTIONS.default,
+      conditionKey: 'uti',
+    };
+  }
+
+  if (category === 'musculo') {
+    const location  = sig(/knee/) ? 'knee' : sig(/ankle/) ? 'ankle' : sig(/back|lumbar|spine/) ? 'back' : sig(/shoulder/) ? 'shoulder' : sig(/wrist/) ? 'wrist' : 'joint';
+    const traumatic = sig(/fell|fall|twist|injury|accident|sprain|trauma/);
+    const chronic   = sig(/months|years|recurring|before.*similar|arthritis/);
+    const locking   = sig(/locking|giving\s*way|instability/);
+    return {
+      symptoms: [
+        { label: `${location.charAt(0).toUpperCase() + location.slice(1)} pain${traumatic ? ' — post-injury' : chronic ? ' — recurring' : ''}`, severity: isSevere ? 'severe' : 'moderate', duration: durationStr },
+        { label: 'Swelling / oedema', severity: sig(/swollen|swelling|oedema/) ? 'moderate' : 'not reported', duration: durationStr },
+        { label: 'Limited range of motion', severity: sig(/can'?t move|stiff|limited/) ? 'moderate' : 'mild', duration: durationStr },
+      ],
+      diagnoses: traumatic
+        ? [
+            { name: `Acute ligamentous sprain — ${location}`, icd: location === 'knee' ? 'S83.4' : location === 'ankle' ? 'S93.4' : 'S33.5', confidence: 65, rationale: 'Mechanism of injury consistent with sprain; Ottawa rules should be applied' },
+            { name: `Fracture — ${location} (rule out)`, icd: location === 'knee' ? 'S82.0' : location === 'ankle' ? 'S82.6' : 'S32.0', confidence: 25, rationale: `Ottawa rules: X-ray if unable to weight-bear or bony tenderness at ${location}` },
+            { name: locking ? `Meniscal / cartilage injury — ${location}` : `Muscle strain — ${location}`, icd: locking ? 'S83.2' : 'M62.6', confidence: 10, rationale: locking ? 'Locking or giving-way reported — MRI referral indicated' : 'Soft tissue injury; RICE protocol' },
+          ]
+        : chronic
+        ? [
+            { name: `Osteoarthritis — ${location}`, icd: 'M19.9', confidence: 55, rationale: 'Chronic recurring joint pain in older patient — X-ray; consider physio referral' },
+            { name: `Inflammatory arthropathy (RA / gout)`, icd: 'M06.9', confidence: 30, rationale: 'Multiple joint involvement or acute flare — CRP, ESR, uric acid, RF, anti-CCP' },
+            { name: `Bursitis — ${location}`, icd: 'M70.9', confidence: 15, rationale: 'Localised swelling around joint — USS guided aspiration if tense' },
+          ]
+        : [
+            { name: `Musculoskeletal pain — ${location}`, icd: 'M79.3', confidence: 60, rationale: 'No clear traumatic mechanism — exclude inflammatory cause with bloods' },
+            { name: 'Inflammatory arthropathy', icd: 'M06.9', confidence: 25, rationale: 'Joint pain ± swelling without trauma — CRP, ESR, RF if suspected' },
+            { name: 'Referred pain', icd: 'M54.9', confidence: 15, rationale: `${location === 'back' ? 'Nerve root compression — neurological exam; MRI if red flags' : 'Consider referred pain from adjacent structure'}` },
+          ],
+      notes: buildNotes(`${location.charAt(0).toUpperCase() + location.slice(1)} pain — ${traumatic ? 'post-traumatic' : chronic ? 'chronic' : 'atraumatic'}`, answers, 'musculoskeletal'),
+      redFlags,
+      checkinQuestions: CHECKIN_QUESTIONS.musculo,
+      conditionKey: 'musculo',
+    };
+  }
+
+  // ── Fallback — insufficient discriminating features ────────────────────
   return {
     symptoms: [
-      { label: 'Systemic malaise', severity: 'mild', duration: durationStr },
-      { label: 'Fatigue', severity: 'mild', duration: durationStr },
+      { label: 'Systemic malaise / fatigue', severity: 'mild', duration: durationStr },
+      { label: 'Generalised symptoms', severity: 'mild', duration: durationStr },
     ],
     diagnoses: [
-      { name: 'Non-specific viral illness', icd: 'B34.9', confidence: 55, rationale: 'Symptoms consistent with self-limiting viral syndrome' },
-      { name: 'Undifferentiated febrile illness', icd: 'R50.9', confidence: 30, rationale: 'Further history and examination required' },
-      { name: 'Psychosomatic / functional disorder', icd: 'F45.9', confidence: 15, rationale: 'Consider if no organic cause identified on workup' },
+      { name: 'Non-specific viral illness', icd: 'B34.9', confidence: 50, rationale: 'Symptoms consistent with self-limiting viral syndrome; watchful waiting appropriate' },
+      { name: 'Undifferentiated febrile illness', icd: 'R50.9', confidence: 30, rationale: 'Further focused history and physical examination required to narrow differential' },
+      { name: 'Functional / psychosomatic disorder', icd: 'F45.9', confidence: 20, rationale: 'Consider biopsychosocial assessment if no organic cause identified on workup' },
     ],
     notes: buildNotes('Non-specific viral illness', answers, 'general practice'),
     redFlags,
     checkinQuestions: CHECKIN_QUESTIONS.default,
+    conditionKey: 'default',
   };
 }
 

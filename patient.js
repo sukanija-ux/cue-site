@@ -156,108 +156,24 @@ function onLangChange() {
 }
 
 // ── Health History ────────────────────────────────────────────
+var _hrEditMode = false;
+var _hrDraft    = null;
+
 function renderHealthHistory(ptId, firstName) {
   var h = _p.getHealthHistory(ptId);
 
   // Greeting
   var greeting = document.getElementById('historyGreeting');
-  if (greeting) greeting.textContent = (firstName || h.firstName || '') ? 'Hello, ' + (firstName || h.firstName) + ' — your health record' : 'Health History';
+  if (greeting) greeting.textContent = (firstName || h.firstName) ? 'Hello, ' + (firstName || h.firstName) + ' — your health record' : 'Health History';
 
-  // Profile strip
-  setText('histBlood', h.bloodType || '—');
-  setText('histAge', h.ageGroup || '—');
-  setText('histAllergyCount', h.allergies.length ? h.allergies.length + (h.allergies.length === 1 ? ' allergy' : ' allergies') : 'None known');
-  setText('histCondCount', h.chronicConditions.length ? h.chronicConditions.length + ' condition' + (h.chronicConditions.length > 1 ? 's' : '') : 'None');
+  // Render inline form
+  renderHRForm(h);
 
-  // Allergies
-  var allergyEl = document.getElementById('histAllergies');
-  if (allergyEl) {
-    if (h.allergies.length === 0) {
-      allergyEl.innerHTML = '<span class="badge badge-green">None known</span>';
-    } else {
-      allergyEl.innerHTML = h.allergies.map(function(a) {
-        return '<span class="badge badge-red" style="padding:4px 10px;font-size:.78rem">⚠️ ' + a + '</span>';
-      }).join('');
-    }
-  }
-
-  // Chronic conditions
-  var chronicEl = document.getElementById('histChronic');
-  if (chronicEl) {
-    if (h.chronicConditions.length === 0) {
-      chronicEl.innerHTML = '<p class="text-sm" style="color:var(--muted)">No chronic conditions on record.</p>';
-    } else {
-      chronicEl.innerHTML = h.chronicConditions.map(function(c) {
-        return '<div class="info-row">' +
-          '<span class="info-label">' + c.label + '</span>' +
-          '<div class="flex items-center gap-8">' +
-            '<span class="info-val text-xs font-mono">ICD-10: ' + c.icd + '</span>' +
-            '<span class="badge ' + (c.status === 'ongoing' ? 'badge-amber' : 'badge-teal') + '">' + c.status + '</span>' +
-            '<span class="text-xs" style="color:var(--subtle)">since ' + c.since + '</span>' +
-          '</div>' +
-        '</div>';
-      }).join('');
-    }
-  }
-
-  // Medications
-  var medsEl = document.getElementById('histMeds');
-  if (medsEl) {
-    if (h.currentMedications.length === 0) {
-      medsEl.innerHTML = '<p class="text-sm" style="color:var(--muted)">No current medications on record.</p>';
-    } else {
-      medsEl.innerHTML = h.currentMedications.map(function(m) {
-        var typeColor = m.type === 'acute' ? 'badge-amber' : m.type === 'supplement' ? 'badge-gray' : 'badge-blue';
-        return '<div class="info-row">' +
-          '<span class="info-label">' + m.name + '</span>' +
-          '<div class="flex items-center gap-8">' +
-            '<span class="info-val text-sm">' + m.dose + '</span>' +
-            '<span class="badge ' + typeColor + '">' + m.type + '</span>' +
-          '</div>' +
-        '</div>';
-      }).join('');
-    }
-  }
-
-  // Vaccinations — structured rows
-  var vaccEl = document.getElementById('histVacc');
-  if (vaccEl) {
-    if (h.vaccinations.length === 0) {
-      vaccEl.innerHTML = '<p class="text-sm" style="color:var(--muted)">No vaccination records on file.</p>';
-    } else {
-      vaccEl.innerHTML = h.vaccinations.map(function(v) {
-        return '<div class="vacc-row">' +
-          '<span style="color:var(--accent);font-size:.85rem">✓</span>' +
-          '<span class="text-sm flex-1">' + v + '</span>' +
-        '</div>';
-      }).join('');
-    }
-  }
-
-  // Recent travels
-  var travelsEl = document.getElementById('histTravels');
-  if (travelsEl) {
-    var travels = h.recentTravels || [];
-    if (travels.length === 0) {
-      travelsEl.innerHTML = '<p class="text-sm" style="color:var(--muted)">No travel history recorded.</p>';
-    } else {
-      travelsEl.innerHTML = travels.map(function(t) {
-        return '<div class="travel-badge">' +
-          '<span style="font-size:1rem">✈️</span>' +
-          '<div>' +
-            '<div class="font-600 text-sm">' + t.destination + '</div>' +
-            '<div class="text-xs" style="color:var(--muted)">' + t.date + ' · ' + t.duration + ' · ' + t.purpose + '</div>' +
-          '</div>' +
-        '</div>';
-      }).join('');
-    }
-  }
-
-  // Past consultations timeline
+  // Past consultations
   var timelineEl = document.getElementById('histTimeline');
   var countEl    = document.getElementById('histConsultCount');
   if (timelineEl) {
-    if (h.pastConsultations.length === 0) {
+    if (!h.pastConsultations || h.pastConsultations.length === 0) {
       timelineEl.innerHTML = '<p class="text-sm" style="color:var(--muted)">No prior consultations found.</p>';
     } else {
       if (countEl) countEl.textContent = h.pastConsultations.length + ' records';
@@ -284,6 +200,339 @@ function renderHealthHistory(ptId, firstName) {
   // Doctor notes
   var notesEl = document.getElementById('histNotes');
   if (notesEl) notesEl.textContent = h.notes || 'No notes on file.';
+}
+
+function renderHRForm(h) {
+  var body = document.getElementById('hrBody');
+  var btns = document.getElementById('hrBtnArea');
+  if (!body) return;
+
+  if (_hrEditMode) {
+    body.innerHTML = buildHREdit(_hrDraft);
+    if (btns) btns.innerHTML =
+      '<div class="flex gap-8">' +
+        '<button class="btn btn-ghost btn-sm" onclick="cancelHREdit()">Cancel</button>' +
+        '<button class="btn btn-primary btn-sm" onclick="saveHRForm()">Save changes</button>' +
+      '</div>';
+  } else {
+    body.innerHTML = buildHRView(h);
+    if (btns) btns.innerHTML = '<button class="btn btn-ghost btn-sm" onclick="enterHREditMode()">✏️ Edit</button>';
+  }
+}
+
+function enterHREditMode() {
+  _hrDraft = JSON.parse(JSON.stringify(_p.getHealthHistory(_p.Session.id)));
+  if (!_hrDraft.recentTravels) _hrDraft.recentTravels = [];
+  if (!_hrDraft.vaccinations)  _hrDraft.vaccinations  = [];
+  _hrEditMode = true;
+  renderHRForm(_hrDraft);
+}
+
+function cancelHREdit() {
+  _hrEditMode = false;
+  _hrDraft    = null;
+  renderHRForm(_p.getHealthHistory(_p.Session.id));
+}
+
+function saveHRForm() {
+  // Collect simple selects
+  var btEl = document.getElementById('hrBloodType');
+  var agEl = document.getElementById('hrAgeGroup');
+  if (btEl) _hrDraft.bloodType = btEl.value;
+  if (agEl) _hrDraft.ageGroup  = agEl.value;
+
+  // Persist
+  var ptId = _p.Session.id;
+  if (!_p.HEALTH_HISTORY[ptId]) _p.HEALTH_HISTORY[ptId] = JSON.parse(JSON.stringify(_hrDraft));
+  var h = _p.HEALTH_HISTORY[ptId];
+  ['bloodType','ageGroup','allergies','chronicConditions','currentMedications','vaccinations','recentTravels'].forEach(function(k) {
+    if (_hrDraft[k] !== undefined) h[k] = _hrDraft[k];
+  });
+  _p.persistHealthEdit(ptId, h);
+  _p.Audit.log('health_record_edited', ptId, { section: 'inline_form' });
+
+  _hrEditMode = false;
+  _hrDraft    = null;
+  var fn = localStorage.getItem('cue_firstname') || h.firstName || '';
+  renderHealthHistory(ptId, fn);
+  showToast('✓ Record saved');
+}
+
+// ── View mode ─────────────────────────────────────────────────
+function buildHRView(h) {
+  var btypes = ['A+','A-','B+','B-','AB+','AB-','O+','O-','Unknown'];
+  var bloodBadge = (h.bloodType && h.bloodType !== 'Unknown')
+    ? '<span class="hr-chip-item accent" style="font-size:.95rem;font-weight:700">' + h.bloodType + '</span>'
+    : '<span style="color:var(--subtle);font-size:.85rem">Not set</span>';
+  var ageBadge = h.ageGroup
+    ? '<span class="hr-chip-item">' + h.ageGroup + '</span>'
+    : '<span style="color:var(--subtle);font-size:.85rem">Not set</span>';
+
+  // Allergies
+  var allergyHtml = (!h.allergies || h.allergies.length === 0)
+    ? '<span class="hr-chip-item accent">✓ None known</span>'
+    : h.allergies.map(function(a) { return '<span class="hr-chip-item danger">⚠️ ' + a + '</span>'; }).join('');
+
+  // Chronic conditions
+  var condHtml = (!h.chronicConditions || h.chronicConditions.length === 0)
+    ? '<span class="text-sm" style="color:var(--muted)">None on record</span>'
+    : h.chronicConditions.map(function(c) {
+        var statusCls = c.status === 'ongoing' ? 'badge-amber' : c.status === 'resolved' ? 'badge-green' : 'badge-teal';
+        return '<div class="hr-structured-item" style="margin-bottom:6px">' +
+          '<div><div class="text-sm font-600" style="color:var(--text)">' + c.label + '</div>' +
+          '<div class="text-xs font-mono" style="color:var(--muted);margin-top:2px">ICD-10: ' + c.icd + ' · since ' + c.since + '</div></div>' +
+          '<span class="badge ' + statusCls + '">' + c.status + '</span>' +
+        '</div>';
+      }).join('');
+
+  // Medications
+  var medsHtml = (!h.currentMedications || h.currentMedications.length === 0)
+    ? '<span class="text-sm" style="color:var(--muted)">None on record</span>'
+    : h.currentMedications.map(function(m) {
+        var typeColor = m.type === 'acute' ? 'badge-amber' : m.type === 'supplement' ? 'badge-gray' : 'badge-blue';
+        return '<div class="hr-structured-item">' +
+          '<div><div class="text-sm font-600" style="color:var(--text)">💊 ' + m.name + '</div>' +
+          '<div class="text-xs" style="color:var(--muted);margin-top:2px">' + m.dose + '</div></div>' +
+          '<span class="badge ' + typeColor + '">' + m.type + '</span>' +
+        '</div>';
+      }).join('');
+
+  // Vaccinations
+  var vaccHtml = (!h.vaccinations || h.vaccinations.length === 0)
+    ? '<span class="text-sm" style="color:var(--muted)">No records on file</span>'
+    : '<div class="hr-chips">' + h.vaccinations.map(function(v) {
+        return '<span class="hr-chip-item accent">✓ ' + v + '</span>';
+      }).join('') + '</div>';
+
+  // Travels
+  var travelsHtml = (!h.recentTravels || h.recentTravels.length === 0)
+    ? '<span class="text-sm" style="color:var(--muted)">No travel history recorded</span>'
+    : h.recentTravels.map(function(t) {
+        return '<div class="hr-travel-card">' +
+          '<span style="font-size:1.1rem">✈️</span>' +
+          '<div><div class="text-sm font-600" style="color:var(--text)">' + t.destination + '</div>' +
+          '<div class="text-xs" style="color:var(--muted);margin-top:1px">' + t.date + ' · ' + t.duration + ' · ' + t.purpose + '</div></div>' +
+        '</div>';
+      }).join('');
+
+  return [
+    hrSection('Personal info', '<div class="hr-field-grid">' +
+      '<div><div class="hr-section-label" style="margin-bottom:6px">Blood type</div>' + bloodBadge + '</div>' +
+      '<div><div class="hr-section-label" style="margin-bottom:6px">Age group</div>' + ageBadge + '</div>' +
+    '</div>'),
+    hrSection('Allergies & intolerances', '<div class="hr-chips">' + allergyHtml + '</div>'),
+    hrSection('Chronic conditions', condHtml),
+    hrSection('Current medications', medsHtml),
+    hrSection('Vaccinations', vaccHtml),
+    hrSection('Recent travels', travelsHtml),
+  ].join('');
+}
+
+function hrSection(label, content) {
+  return '<div class="hr-section"><div class="hr-section-label">' + label + '</div>' + content + '</div>';
+}
+
+// ── Edit mode ─────────────────────────────────────────────────
+function buildHREdit(h) {
+  var btypes = ['A+','A-','B+','B-','AB+','AB-','O+','O-','Unknown'];
+  var ages   = ['Child (under 12)','Teen (12–17)','Young adult (18–25)',
+                'Adult (20s)','Adult (30s)','Adult (40s)','Adult (50s)','Adult (60s)','Senior (70+)'];
+
+  // Personal info
+  var profileHtml = '<div class="hr-field-grid">' +
+    '<div class="form-group" style="margin:0">' +
+      '<label class="form-label">Blood type</label>' +
+      '<select class="form-select" id="hrBloodType">' +
+        btypes.map(function(b) { return '<option' + (b === h.bloodType ? ' selected' : '') + '>' + b + '</option>'; }).join('') +
+      '</select>' +
+    '</div>' +
+    '<div class="form-group" style="margin:0">' +
+      '<label class="form-label">Age group</label>' +
+      '<select class="form-select" id="hrAgeGroup">' +
+        ages.map(function(a) { return '<option' + (a === h.ageGroup ? ' selected' : '') + '>' + a + '</option>'; }).join('') +
+      '</select>' +
+    '</div>' +
+  '</div>';
+
+  // Allergies list + add
+  var allergyItems = (h.allergies || []).map(function(a, i) {
+    return '<span class="hr-chip-item danger">⚠️ ' + a +
+      '<button class="hr-remove" onclick="hrRemove(\'allergies\',' + i + ')">×</button></span>';
+  }).join('');
+  var allergyHtml = '<div class="hr-chips" id="hrAllergyChips">' +
+    (allergyItems || '<span class="text-xs" style="color:var(--muted)">None added yet</span>') +
+  '</div>' +
+  '<div class="hr-add-row">' +
+    '<input class="form-input" id="hrAllergyInput" placeholder="e.g. Penicillin, Latex…" onkeydown="if(event.key===\'Enter\')hrAddStr(\'allergies\',\'hrAllergyInput\')" />' +
+    '<button class="btn btn-outline btn-sm" onclick="hrAddStr(\'allergies\',\'hrAllergyInput\')">+ Add</button>' +
+  '</div>';
+
+  // Chronic conditions
+  var condItems = (h.chronicConditions || []).map(function(c, i) {
+    return '<div class="hr-structured-item">' +
+      '<div><div class="text-sm font-600">' + c.label + '</div>' +
+      '<div class="text-xs font-mono" style="color:var(--muted)">ICD-10: ' + c.icd + ' · since ' + c.since + '</div></div>' +
+      '<div class="flex items-center gap-6">' +
+        '<span class="badge ' + (c.status === 'ongoing' ? 'badge-amber' : 'badge-teal') + '">' + c.status + '</span>' +
+        '<button class="hr-remove" onclick="hrRemove(\'chronicConditions\',' + i + ')">×</button>' +
+      '</div>' +
+    '</div>';
+  }).join('') || '<p class="text-sm" style="color:var(--muted)">None on record.</p>';
+  var condHtml = '<div id="hrCondList">' + condItems + '</div>' +
+    '<div class="hr-add-block">' +
+      '<div class="hr-add-block-label">Add condition</div>' +
+      '<input class="form-input" id="condLabel" placeholder="Condition name (e.g. Asthma)" />' +
+      '<div class="flex gap-8">' +
+        '<input class="form-input" id="condIcd" placeholder="ICD-10 code" style="flex:1" />' +
+        '<input class="form-input" id="condSince" placeholder="Since year" style="flex:1" />' +
+        '<select class="form-select" id="condStatus" style="flex:1"><option value="ongoing">Ongoing</option><option value="managed">Managed</option><option value="resolved">Resolved</option></select>' +
+      '</div>' +
+      '<button class="btn btn-outline btn-sm" style="align-self:flex-start" onclick="hrAddCondition()">+ Add</button>' +
+    '</div>';
+
+  // Medications
+  var medItems = (h.currentMedications || []).map(function(m, i) {
+    var typeColor = m.type === 'acute' ? 'badge-amber' : m.type === 'supplement' ? 'badge-gray' : 'badge-blue';
+    return '<div class="hr-structured-item">' +
+      '<div><div class="text-sm font-600">💊 ' + m.name + '</div>' +
+      '<div class="text-xs" style="color:var(--muted)">' + m.dose + '</div></div>' +
+      '<div class="flex items-center gap-6">' +
+        '<span class="badge ' + typeColor + '">' + m.type + '</span>' +
+        '<button class="hr-remove" onclick="hrRemove(\'currentMedications\',' + i + ')">×</button>' +
+      '</div>' +
+    '</div>';
+  }).join('') || '<p class="text-sm" style="color:var(--muted)">None on record.</p>';
+  var medsHtml = '<div id="hrMedList">' + medItems + '</div>' +
+    '<div class="hr-add-block">' +
+      '<div class="hr-add-block-label">Add medication</div>' +
+      '<input class="form-input" id="medName" placeholder="Name (e.g. Ibuprofen 400mg)" />' +
+      '<input class="form-input" id="medDose" placeholder="Frequency (e.g. Twice daily with food)" />' +
+      '<div class="flex gap-8">' +
+        '<select class="form-select" id="medType" style="flex:1"><option value="maintenance">Maintenance</option><option value="acute">Acute (PRN)</option><option value="supplement">Supplement</option></select>' +
+        '<button class="btn btn-outline btn-sm" onclick="hrAddMed()">+ Add</button>' +
+      '</div>' +
+    '</div>';
+
+  // Vaccinations
+  var vaccItems = (h.vaccinations || []).map(function(v, i) {
+    return '<span class="hr-chip-item accent">✓ ' + v +
+      '<button class="hr-remove" onclick="hrRemove(\'vaccinations\',' + i + ')">×</button></span>';
+  }).join('');
+  var vaccHtml = '<div class="hr-chips" id="hrVaccChips">' +
+    (vaccItems || '<span class="text-xs" style="color:var(--muted)">None added yet</span>') +
+  '</div>' +
+  '<div class="hr-add-row">' +
+    '<input class="form-input" id="hrVaccInput" placeholder="e.g. Flu vaccine (Oct 2024)…" onkeydown="if(event.key===\'Enter\')hrAddStr(\'vaccinations\',\'hrVaccInput\')" />' +
+    '<button class="btn btn-outline btn-sm" onclick="hrAddStr(\'vaccinations\',\'hrVaccInput\')">+ Add</button>' +
+  '</div>';
+
+  // Travels
+  var travelItems = (h.recentTravels || []).map(function(t, i) {
+    return '<div class="hr-travel-card" style="justify-content:space-between">' +
+      '<div style="display:flex;align-items:center;gap:8px">' +
+        '<span>✈️</span>' +
+        '<div><div class="text-sm font-600">' + t.destination + '</div>' +
+        '<div class="text-xs" style="color:var(--muted)">' + t.date + ' · ' + t.duration + ' · ' + t.purpose + '</div></div>' +
+      '</div>' +
+      '<button class="hr-remove" onclick="hrRemove(\'recentTravels\',' + i + ')">×</button>' +
+    '</div>';
+  }).join('') || '<p class="text-sm" style="color:var(--muted)">No travel history recorded.</p>';
+  var travelsHtml = '<div id="hrTravelList">' + travelItems + '</div>' +
+    '<div class="hr-add-block">' +
+      '<div class="hr-add-block-label">Add trip</div>' +
+      '<input class="form-input" id="travelDest" placeholder="Destination (e.g. Japan, Tokyo)" />' +
+      '<div class="flex gap-8">' +
+        '<input class="form-input" id="travelDate" placeholder="Month & year (e.g. Apr 2025)" style="flex:1" />' +
+        '<input class="form-input" id="travelDur" placeholder="Duration (e.g. 2 weeks)" style="flex:1" />' +
+      '</div>' +
+      '<div class="flex gap-8">' +
+        '<select class="form-select" id="travelPurpose" style="flex:1">' +
+          '<option value="Holiday">Holiday</option><option value="Business">Business</option>' +
+          '<option value="Family visit">Family visit</option><option value="Volunteer">Volunteer</option><option value="Medical">Medical</option>' +
+        '</select>' +
+        '<button class="btn btn-outline btn-sm" onclick="hrAddTravel()">+ Add</button>' +
+      '</div>' +
+    '</div>';
+
+  return [
+    hrSection('Personal info', profileHtml),
+    hrSection('Allergies & intolerances', allergyHtml),
+    hrSection('Chronic conditions', condHtml),
+    hrSection('Current medications', medsHtml),
+    hrSection('Vaccinations', vaccHtml),
+    hrSection('Recent travels', travelsHtml),
+  ].join('');
+}
+
+// ── Inline edit helpers ────────────────────────────────────────
+function hrRemove(field, idx) {
+  _hrDraft[field].splice(idx, 1);
+  // read current select values before re-render
+  var bt = document.getElementById('hrBloodType'); if (bt) _hrDraft.bloodType = bt.value;
+  var ag = document.getElementById('hrAgeGroup');  if (ag) _hrDraft.ageGroup  = ag.value;
+  renderHRForm(_hrDraft);
+}
+
+function hrAddStr(field, inputId) {
+  var val = document.getElementById(inputId).value.trim();
+  if (!val) return;
+  if (!_hrDraft[field]) _hrDraft[field] = [];
+  _hrDraft[field].push(val);
+  var bt = document.getElementById('hrBloodType'); if (bt) _hrDraft.bloodType = bt.value;
+  var ag = document.getElementById('hrAgeGroup');  if (ag) _hrDraft.ageGroup  = ag.value;
+  renderHRForm(_hrDraft);
+}
+
+function hrAddCondition() {
+  var label = document.getElementById('condLabel').value.trim();
+  if (!label) return;
+  if (!_hrDraft.chronicConditions) _hrDraft.chronicConditions = [];
+  _hrDraft.chronicConditions.push({
+    label:  label,
+    icd:    document.getElementById('condIcd').value.trim()    || 'N/A',
+    since:  document.getElementById('condSince').value.trim()  || new Date().getFullYear().toString(),
+    status: document.getElementById('condStatus').value,
+  });
+  var bt = document.getElementById('hrBloodType'); if (bt) _hrDraft.bloodType = bt.value;
+  var ag = document.getElementById('hrAgeGroup');  if (ag) _hrDraft.ageGroup  = ag.value;
+  renderHRForm(_hrDraft);
+}
+
+function hrAddMed() {
+  var name = document.getElementById('medName').value.trim();
+  if (!name) return;
+  if (!_hrDraft.currentMedications) _hrDraft.currentMedications = [];
+  _hrDraft.currentMedications.push({
+    name: name,
+    dose: document.getElementById('medDose').value.trim() || 'As directed',
+    type: document.getElementById('medType').value,
+  });
+  var bt = document.getElementById('hrBloodType'); if (bt) _hrDraft.bloodType = bt.value;
+  var ag = document.getElementById('hrAgeGroup');  if (ag) _hrDraft.ageGroup  = ag.value;
+  renderHRForm(_hrDraft);
+}
+
+function hrAddTravel() {
+  var dest = document.getElementById('travelDest').value.trim();
+  if (!dest) return;
+  if (!_hrDraft.recentTravels) _hrDraft.recentTravels = [];
+  _hrDraft.recentTravels.unshift({
+    destination: dest,
+    date:     document.getElementById('travelDate').value.trim()    || 'Date not specified',
+    duration: document.getElementById('travelDur').value.trim()     || 'Duration not specified',
+    purpose:  document.getElementById('travelPurpose').value,
+  });
+  var bt = document.getElementById('hrBloodType'); if (bt) _hrDraft.bloodType = bt.value;
+  var ag = document.getElementById('hrAgeGroup');  if (ag) _hrDraft.ageGroup  = ag.value;
+  renderHRForm(_hrDraft);
+}
+
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, 2500);
 }
 
 function setText(id, val) {
@@ -535,233 +784,3 @@ function showMockTreatment() {
   if (pill4) pill4.classList.remove('locked');
 }
 
-// ── Health Record Edit Modal ──────────────────────────────────
-var _editSection = null;
-var _editHistory = null;
-
-function openEditModal(section) {
-  _editSection = section;
-  _editHistory = JSON.parse(JSON.stringify(_p.getHealthHistory(_p.Session.id)));
-  if (!_editHistory.recentTravels) _editHistory.recentTravels = [];
-
-  var titles = {
-    profile: 'Edit Profile', allergies: 'Allergies & Intolerances',
-    conditions: 'Chronic Conditions', medications: 'Current Medications',
-    vaccinations: 'Vaccinations', travels: 'Recent Travels',
-  };
-  document.getElementById('editModalTitle').textContent = '✏️ ' + (titles[section] || 'Edit');
-  document.getElementById('editModalBody').innerHTML = buildEditBody(section);
-  document.getElementById('editModal').classList.add('open');
-}
-
-function closeEditModal() {
-  document.getElementById('editModal').classList.remove('open');
-  _editSection = null;
-  _editHistory = null;
-}
-
-function buildEditBody(section) {
-  var h = _editHistory;
-
-  if (section === 'profile') {
-    var btypes = ['A+','A-','B+','B-','AB+','AB-','O+','O-','Unknown'];
-    var ages   = ['Child (under 12)','Teen (12–17)','Young adult (18–25)',
-                  'Adult (20s)','Adult (30s)','Adult (40s)','Adult (50s)','Adult (60s)','Senior (70+)'];
-    return '<div class="stack-12">' +
-      '<div class="form-group"><label class="form-label">Blood type</label>' +
-        '<select class="form-select" id="editBloodType">' +
-          btypes.map(function(b) { return '<option' + (b===h.bloodType?' selected':'') + '>' + b + '</option>'; }).join('') +
-        '</select></div>' +
-      '<div class="form-group"><label class="form-label">Age group</label>' +
-        '<select class="form-select" id="editAgeGroup">' +
-          ages.map(function(a) { return '<option' + (a===h.ageGroup?' selected':'') + '>' + a + '</option>'; }).join('') +
-        '</select></div>' +
-    '</div>';
-  }
-
-  if (section === 'allergies') {
-    return buildStringListEdit('allergies', h.allergies, 'editAllergyInput', 'e.g. Latex, Codeine, Iodine…', '⚠️ ');
-  }
-
-  if (section === 'vaccinations') {
-    return buildStringListEdit('vaccinations', h.vaccinations, 'editVaccInput', 'e.g. Hepatitis A (Jan 2025)…', '✓ ');
-  }
-
-  if (section === 'conditions') {
-    var condRows = h.chronicConditions.length === 0
-      ? '<p class="text-sm" style="color:var(--muted)">No chronic conditions on record.</p>'
-      : h.chronicConditions.map(function(c, i) {
-          return '<div class="edit-item-row">' +
-            '<div><div class="text-sm font-600">' + c.label + '</div>' +
-            '<div class="text-xs" style="color:var(--muted)">ICD-10: ' + c.icd + ' · since ' + c.since + '</div></div>' +
-            '<button class="edit-remove-btn" onclick="removeEditCondition(' + i + ')">×</button>' +
-          '</div>';
-        }).join('');
-    return '<div class="stack-8" id="editCondList">' + condRows + '</div>' +
-      '<div class="stack-8 mt-12" style="padding:12px;background:var(--surface-2);border-radius:var(--r);border:1px solid var(--border)">' +
-        '<p class="text-xs font-600" style="color:var(--subtle);text-transform:uppercase;letter-spacing:.05em">Add condition</p>' +
-        '<input class="form-input" id="condLabel" placeholder="Condition name (e.g. Asthma)" />' +
-        '<div class="flex gap-8">' +
-          '<input class="form-input" id="condIcd" placeholder="ICD-10 code" style="flex:1" />' +
-          '<input class="form-input" id="condSince" placeholder="Since year" style="flex:1" />' +
-          '<select class="form-select" id="condStatus" style="flex:1"><option value="ongoing">Ongoing</option><option value="managed">Managed</option><option value="resolved">Resolved</option></select>' +
-        '</div>' +
-        '<button class="btn btn-outline btn-sm" onclick="addEditCondition()">Add condition</button>' +
-      '</div>';
-  }
-
-  if (section === 'medications') {
-    var medRows = h.currentMedications.length === 0
-      ? '<p class="text-sm" style="color:var(--muted)">No medications on record.</p>'
-      : h.currentMedications.map(function(m, i) {
-          var chip = m.type==='acute'?'badge-amber':m.type==='supplement'?'badge-gray':'badge-blue';
-          return '<div class="edit-item-row">' +
-            '<div><div class="text-sm font-600">' + m.name + ' <span class="badge ' + chip + '">' + m.type + '</span></div>' +
-            '<div class="text-xs" style="color:var(--muted)">' + m.dose + '</div></div>' +
-            '<button class="edit-remove-btn" onclick="removeEditMed(' + i + ')">×</button>' +
-          '</div>';
-        }).join('');
-    return '<div class="stack-8" id="editMedList">' + medRows + '</div>' +
-      '<div class="stack-8 mt-12" style="padding:12px;background:var(--surface-2);border-radius:var(--r);border:1px solid var(--border)">' +
-        '<p class="text-xs font-600" style="color:var(--subtle);text-transform:uppercase;letter-spacing:.05em">Add medication</p>' +
-        '<input class="form-input" id="medName" placeholder="Name & dose (e.g. Ibuprofen 400mg)" />' +
-        '<input class="form-input" id="medDose" placeholder="Frequency (e.g. Twice daily with food)" />' +
-        '<select class="form-select" id="medType"><option value="maintenance">Maintenance</option><option value="acute">Acute (PRN)</option><option value="supplement">Supplement</option></select>' +
-        '<button class="btn btn-outline btn-sm" onclick="addEditMed()">Add medication</button>' +
-      '</div>';
-  }
-
-  if (section === 'travels') {
-    var travelRows = (!h.recentTravels || h.recentTravels.length === 0)
-      ? '<p class="text-sm" style="color:var(--muted)">No travel history recorded.</p>'
-      : h.recentTravels.map(function(t, i) {
-          return '<div class="edit-item-row">' +
-            '<div><div class="text-sm font-600">✈️ ' + t.destination + '</div>' +
-            '<div class="text-xs" style="color:var(--muted)">' + t.date + ' · ' + t.duration + ' · ' + t.purpose + '</div></div>' +
-            '<button class="edit-remove-btn" onclick="removeEditTravel(' + i + ')">×</button>' +
-          '</div>';
-        }).join('');
-    return '<div class="stack-8" id="editTravelList">' + travelRows + '</div>' +
-      '<div class="stack-8 mt-12" style="padding:12px;background:var(--surface-2);border-radius:var(--r);border:1px solid var(--border)">' +
-        '<p class="text-xs font-600" style="color:var(--subtle);text-transform:uppercase;letter-spacing:.05em">Add trip</p>' +
-        '<input class="form-input" id="travelDest" placeholder="Destination (e.g. Japan, Tokyo)" />' +
-        '<div class="flex gap-8">' +
-          '<input class="form-input" id="travelDate" placeholder="Month & year (e.g. Apr 2025)" style="flex:1" />' +
-          '<input class="form-input" id="travelDur" placeholder="Duration" style="flex:1" />' +
-        '</div>' +
-        '<select class="form-select" id="travelPurpose">' +
-          '<option value="Holiday">Holiday</option><option value="Business">Business</option>' +
-          '<option value="Family visit">Family visit</option><option value="Volunteer">Volunteer</option><option value="Medical">Medical</option>' +
-        '</select>' +
-        '<button class="btn btn-outline btn-sm" onclick="addEditTravel()">Add trip</button>' +
-      '</div>';
-  }
-
-  return '<p class="text-sm text-muted">Nothing to edit here.</p>';
-}
-
-function buildStringListEdit(field, arr, inputId, placeholder, prefix) {
-  var rows = arr.length === 0
-    ? '<p class="text-sm" style="color:var(--muted)">None recorded.</p>'
-    : arr.map(function(v, i) {
-        return '<div class="edit-item-row">' +
-          '<span class="text-sm">' + prefix + v + '</span>' +
-          '<button class="edit-remove-btn" onclick="removeEditStr(\'' + field + '\',' + i + ')">×</button>' +
-        '</div>';
-      }).join('');
-  return '<div class="stack-8" id="editStrList">' + rows + '</div>' +
-    '<div class="flex gap-8 mt-10">' +
-      '<input class="form-input" id="' + inputId + '" placeholder="' + placeholder + '" style="flex:1" onkeydown="if(event.key===\'Enter\')addEditStr(\'' + field + '\',\'' + inputId + '\')" />' +
-      '<button class="btn btn-outline btn-sm" onclick="addEditStr(\'' + field + '\',\'' + inputId + '\')">Add</button>' +
-    '</div>';
-}
-
-// ── Edit helpers ──────────────────────────────────────────────
-function removeEditStr(field, idx) {
-  _editHistory[field].splice(idx, 1);
-  document.getElementById('editModalBody').innerHTML = buildEditBody(_editSection);
-}
-function addEditStr(field, inputId) {
-  var val = document.getElementById(inputId).value.trim();
-  if (!val) return;
-  _editHistory[field].push(val);
-  document.getElementById('editModalBody').innerHTML = buildEditBody(_editSection);
-}
-function removeEditCondition(idx) {
-  _editHistory.chronicConditions.splice(idx, 1);
-  document.getElementById('editModalBody').innerHTML = buildEditBody('conditions');
-}
-function addEditCondition() {
-  var label = document.getElementById('condLabel').value.trim();
-  if (!label) return;
-  _editHistory.chronicConditions.push({
-    label: label,
-    icd:   document.getElementById('condIcd').value.trim() || 'N/A',
-    since: document.getElementById('condSince').value.trim() || new Date().getFullYear().toString(),
-    status: document.getElementById('condStatus').value,
-  });
-  document.getElementById('editModalBody').innerHTML = buildEditBody('conditions');
-}
-function removeEditMed(idx) {
-  _editHistory.currentMedications.splice(idx, 1);
-  document.getElementById('editModalBody').innerHTML = buildEditBody('medications');
-}
-function addEditMed() {
-  var name = document.getElementById('medName').value.trim();
-  if (!name) return;
-  _editHistory.currentMedications.push({
-    name: name,
-    dose: document.getElementById('medDose').value.trim() || 'As directed',
-    type: document.getElementById('medType').value,
-  });
-  document.getElementById('editModalBody').innerHTML = buildEditBody('medications');
-}
-function removeEditTravel(idx) {
-  _editHistory.recentTravels.splice(idx, 1);
-  document.getElementById('editModalBody').innerHTML = buildEditBody('travels');
-}
-function addEditTravel() {
-  var dest = document.getElementById('travelDest').value.trim();
-  if (!dest) return;
-  _editHistory.recentTravels.unshift({
-    destination: dest,
-    date:    document.getElementById('travelDate').value.trim() || 'Date not specified',
-    duration: document.getElementById('travelDur').value.trim() || 'Duration not specified',
-    purpose: document.getElementById('travelPurpose').value,
-  });
-  document.getElementById('editModalBody').innerHTML = buildEditBody('travels');
-}
-
-function saveEdit() {
-  var ptId = _p.Session.id;
-
-  // Ensure the patient has a writable record in HEALTH_HISTORY (create if unknown)
-  if (!_p.HEALTH_HISTORY[ptId]) {
-    _p.HEALTH_HISTORY[ptId] = JSON.parse(JSON.stringify(_editHistory));
-  }
-
-  var h = _p.HEALTH_HISTORY[ptId]; // always the live reference
-
-  if (_editSection === 'profile') {
-    h.bloodType = document.getElementById('editBloodType').value;
-    h.ageGroup  = document.getElementById('editAgeGroup').value;
-  } else {
-    ['allergies','vaccinations','chronicConditions','currentMedications','recentTravels'].forEach(function(field) {
-      if (_editHistory[field] !== undefined) h[field] = _editHistory[field];
-    });
-  }
-
-  _p.Audit.log('health_record_edited', ptId, { section: _editSection });
-
-  // Persist edits so they survive page navigation
-  _p.persistHealthEdit(ptId, h);
-
-  // Re-render
-  var fn = localStorage.getItem('cue_firstname') || h.firstName || '';
-  renderHealthHistory(ptId, fn);
-  closeEditModal();
-
-  // Toast
-  var t = document.getElementById('toast');
-  if (t) { t.textContent = '✓ Record updated'; t.classList.add('show'); setTimeout(function(){ t.classList.remove('show'); }, 2500); }
-}

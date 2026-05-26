@@ -99,74 +99,13 @@
           <button class="btn btn-primary" onclick="navToSection(1)" style="gap:6px;white-space:nowrap">Start consultation <span style="opacity:.8">→</span></button>
         </div>
 
-        <!-- Profile strip -->
-        <div class="card mb-12" style="padding:20px 24px">
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-bottom:16px">
-            <div>
-              <div style="font-size:.6875rem;font-weight:600;color:var(--subtle);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Blood type</div>
-              <div style="font-size:1.25rem;font-weight:700;color:var(--text);letter-spacing:-.02em" id="histBlood">—</div>
-            </div>
-            <div>
-              <div style="font-size:.6875rem;font-weight:600;color:var(--subtle);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Age group</div>
-              <div style="font-size:.9375rem;font-weight:600;color:var(--text)" id="histAge">—</div>
-            </div>
-            <div>
-              <div style="font-size:.6875rem;font-weight:600;color:var(--subtle);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Allergies</div>
-              <div style="font-size:.9375rem;font-weight:600;color:var(--text)" id="histAllergyCount">—</div>
-            </div>
-            <div>
-              <div style="font-size:.6875rem;font-weight:600;color:var(--subtle);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Conditions</div>
-              <div style="font-size:.9375rem;font-weight:600;color:var(--text)" id="histCondCount">—</div>
-            </div>
+        <!-- Unified health record card -->
+        <div class="card mb-16">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:14px;margin-bottom:4px;border-bottom:1px solid var(--border)">
+            <div style="font-size:.875rem;font-weight:600;color:var(--text)">Health Record</div>
+            <div id="hrBtnArea"></div>
           </div>
-          <div style="border-top:1px solid var(--border);padding-top:12px;display:flex;justify-content:flex-end">
-            <button class="edit-btn" onclick="openEditModal('profile')">✏️ Edit profile</button>
-          </div>
-        </div>
-
-        <!-- Allergies -->
-        <div class="card mb-12" id="histAllergyCard">
-          <div class="card-header" style="margin-bottom:12px">
-            <div class="card-title" style="display:flex;align-items:center;gap:7px"><span style="font-size:1rem">⚠️</span> Allergies &amp; intolerances</div>
-            <button class="edit-btn" onclick="openEditModal('allergies')">✏️ Edit</button>
-          </div>
-          <div id="histAllergies" class="flex gap-8" style="flex-wrap:wrap"></div>
-        </div>
-
-        <!-- Chronic conditions -->
-        <div class="card mb-12" id="histChronicCard">
-          <div class="card-header">
-            <div class="card-title">Chronic conditions</div>
-            <button class="edit-btn" onclick="openEditModal('conditions')">✏️ Edit</button>
-          </div>
-          <div id="histChronic" class="stack-8"></div>
-        </div>
-
-        <!-- Current medications -->
-        <div class="card mb-12" id="histMedsCard">
-          <div class="card-header" style="margin-bottom:12px">
-            <div class="card-title" style="display:flex;align-items:center;gap:7px"><span>💊</span> Current medications</div>
-            <button class="edit-btn" onclick="openEditModal('medications')">✏️ Edit</button>
-          </div>
-          <div id="histMeds" class="stack-8"></div>
-        </div>
-
-        <!-- Vaccinations -->
-        <div class="card mb-12">
-          <div class="card-header" style="margin-bottom:12px">
-            <div class="card-title" style="display:flex;align-items:center;gap:7px"><span>💉</span> Vaccinations</div>
-            <button class="edit-btn" onclick="openEditModal('vaccinations')">✏️ Edit</button>
-          </div>
-          <div id="histVacc" class="stack-8"></div>
-        </div>
-
-        <!-- Recent travels -->
-        <div class="card mb-12">
-          <div class="card-header" style="margin-bottom:12px">
-            <div class="card-title" style="display:flex;align-items:center;gap:7px"><span>✈️</span> Recent travels</div>
-            <button class="edit-btn" onclick="openEditModal('travels')">✏️ Edit</button>
-          </div>
-          <div id="histTravels" class="stack-8"></div>
+          <div id="hrBody"></div>
         </div>
 
         <!-- Past consultations -->
@@ -453,54 +392,58 @@
 
 <div class="toast" id="toast"></div>
 
-<!-- Health Record Edit Modal -->
-<div class="modal-overlay" id="editModal">
-  <div class="modal" style="max-width:480px">
-    <div class="modal-header">
-      <h3 id="editModalTitle">Edit</h3>
-      <button class="modal-close" onclick="closeEditModal()">✕</button>
-    </div>
-    <div id="editModalBody" class="stack-12" style="max-height:60vh;overflow-y:auto;padding-right:2px"></div>
-    <hr class="divider mt-16 mb-12">
-    <div class="flex gap-8">
-      <button class="btn btn-primary" onclick="saveEdit()">Save changes</button>
-      <button class="btn btn-ghost" onclick="closeEditModal()">Cancel</button>
-    </div>
-  </div>
-</div>
 
 <style>
-.edit-btn {
-  background: none; border: 1px solid var(--border); cursor: pointer;
-  font-size: .73rem; padding: 3px 10px; border-radius: 4px; color: var(--muted);
-  font-family: var(--font); transition: all .15s;
+/* Health record form */
+.hr-section { padding: 16px 0; border-bottom: 1px solid var(--border); }
+.hr-section:first-child { padding-top: 12px; }
+.hr-section:last-child { border-bottom: none; padding-bottom: 0; }
+.hr-section-label {
+  font-size: .6875rem; font-weight: 600; color: var(--subtle);
+  text-transform: uppercase; letter-spacing: .07em; margin-bottom: 10px;
 }
-.edit-btn:hover { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); }
-.edit-item-row {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 9px 12px; background: var(--surface-2); border-radius: var(--r);
-  border: 1px solid var(--border);
+.hr-field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.hr-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.hr-chip-item {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--r-full); font-size: .8125rem; color: var(--text-2);
 }
-.edit-remove-btn {
-  background: none; border: none; cursor: pointer; color: var(--red);
-  font-size: 1rem; line-height: 1; padding: 0 4px; border-radius: 3px;
-  transition: background .1s;
+.hr-chip-item.danger { background: #FEF2F2; border-color: #FECACA; color: #991B1B; }
+.hr-chip-item.accent { background: var(--accent-bg); border-color: var(--accent-mid); color: var(--accent-h); }
+.hr-remove {
+  background: none; border: none; cursor: pointer; color: var(--muted);
+  font-size: .9rem; padding: 0; line-height: 1; border-radius: 2px; transition: color .1s;
 }
-.edit-remove-btn:hover { background: #FEE2E2; }
-.travel-badge {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 8px 14px; background: var(--surface-2); border: 1px solid var(--border);
-  border-radius: var(--r); font-size: .85rem;
+.hr-remove:hover { color: var(--red); }
+.hr-add-row { display: flex; gap: 6px; margin-top: 8px; }
+.hr-add-row .form-input { flex: 1; height: 32px; font-size: .8125rem; }
+.hr-add-row .btn { height: 32px; font-size: .78rem; padding: 0 12px; }
+.hr-structured-item {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+  padding: 9px 12px; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--r); margin-bottom: 6px;
 }
-.vacc-row {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 0; border-bottom: 1px solid var(--border);
+.hr-structured-item:last-of-type { margin-bottom: 0; }
+.hr-add-block {
+  margin-top: 10px; padding: 12px; background: var(--surface-2);
+  border: 1px dashed var(--border-2); border-radius: var(--r);
+  display: flex; flex-direction: column; gap: 8px;
 }
-.vacc-row:last-child { border-bottom: none; }
+.hr-add-block-label {
+  font-size: .71rem; font-weight: 600; color: var(--subtle);
+  text-transform: uppercase; letter-spacing: .06em;
+}
+.hr-travel-card {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--r); margin-bottom: 6px;
+}
+.hr-vacc-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; }
 </style>
 
-<script src="app.js?v=8"></script>
-<script src="patient.js?v=8"></script>
-<script src="tracker.js?v=8"></script>
+<script src="app.js?v=9"></script>
+<script src="patient.js?v=9"></script>
+<script src="tracker.js?v=9"></script>
 </body>
 </html>

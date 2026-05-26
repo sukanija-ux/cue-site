@@ -18,7 +18,10 @@ const Session = {
     document.querySelectorAll('#navId').forEach(el => el.textContent = this.id);
     const fn = this.firstName;
     document.querySelectorAll('.patient-greeting').forEach(el => { el.textContent = fn ? 'Hello, ' + fn : ''; });
-    document.querySelectorAll('.nav-user-name').forEach(el => { el.textContent = fn || this.id; });
+    document.querySelectorAll('.nav-user-name').forEach(el => {
+      el.textContent = fn || '';
+      el.style.display = fn ? '' : 'none';
+    });
   },
   logout() {
     ['cue_role','cue_id','cue_name','cue_firstname'].forEach(k => {

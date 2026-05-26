@@ -30,9 +30,12 @@
   <!-- Sidebar -->
   <aside class="sidebar">
     <!-- Patient greeting -->
-    <div style="padding:4px 2px 12px;border-bottom:1px solid var(--border);margin-bottom:8px">
-      <div class="patient-greeting" style="font-size:.875rem;font-weight:600;color:var(--text)"></div>
-      <div class="nav-id" style="display:inline-block;margin-top:4px;font-size:.72rem" id="sidebarId">PT-????</div>
+    <div style="padding:6px 8px 14px;border-bottom:1px solid var(--border);margin-bottom:4px">
+      <div class="patient-greeting" style="font-size:.9375rem;font-weight:600;color:var(--text);line-height:1.3"></div>
+      <div style="display:flex;align-items:center;gap:5px;margin-top:5px">
+        <span style="width:5px;height:5px;border-radius:50%;background:var(--green);flex-shrink:0"></span>
+        <span style="font-size:.725rem;font-family:var(--mono);color:var(--muted)" id="sidebarId">PT-????</span>
+      </div>
     </div>
 
     <div class="sidebar-section">My Journey</div>
@@ -41,7 +44,7 @@
       <span class="step-num" id="snum0">📋</span>
       <span>Health History</span>
     </button>
-    <button class="step-pill" id="pill1" onclick="navToSection(1)" style="margin-top:2px">
+    <button class="step-pill" id="pill1" onclick="navToSection(1)">
       <span class="step-num" id="snum1">1</span>
       <span>Pre-Consultation</span>
     </button>
@@ -61,9 +64,9 @@
     <div style="flex:1"></div>
 
     <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:8px">
-      <div class="sidebar-section" style="padding-top:4px">Language</div>
+      <div class="sidebar-section" style="padding-top:0;padding-bottom:6px">Language</div>
       <select id="langSelect" onchange="onLangChange()"
-        style="width:100%;padding:7px 10px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface);font-size:.8rem;color:var(--text);font-family:var(--font);outline:none">
+        style="width:100%;padding:7px 10px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface);font-size:.8125rem;color:var(--text);font-family:var(--font);outline:none;cursor:pointer">
         <option value="auto">Auto-detect</option>
         <option value="en">English</option>
         <option value="es">Español</option>
@@ -75,8 +78,8 @@
       </select>
     </div>
 
-    <div style="padding-top:12px;border-top:1px solid var(--border);margin-top:8px">
-      <p style="font-size:.7rem;color:var(--subtle);line-height:1.5">🔒 Identified by patient ID only. No personal data stored.</p>
+    <div style="padding-top:12px;border-top:1px solid var(--border);margin-top:10px">
+      <p style="font-size:.7rem;color:var(--subtle);line-height:1.55">🔒 Identified by patient ID only. No personal data stored.</p>
     </div>
   </aside>
 
@@ -85,46 +88,46 @@
     <div class="main-inner">
 
       <!-- ── Section 0: Health History ── -->
-      <div id="sec0" style="max-width:660px;margin:0 auto">
+      <div id="sec0" style="max-width:680px;margin:0 auto">
 
         <!-- Header -->
         <div class="flex items-center justify-between mb-20">
           <div>
-            <h2 id="historyGreeting">Health History</h2>
-            <p class="text-sm mt-4">Your medical record, allergies, medications and past consultations.</p>
+            <h2 id="historyGreeting" style="font-size:1.375rem">Health History</h2>
+            <p class="text-sm mt-4" style="color:var(--muted)">Your medical record, allergies, medications and past consultations.</p>
           </div>
-          <button class="btn btn-primary btn-sm" onclick="navToSection(1)">Start today's consultation →</button>
+          <button class="btn btn-primary" onclick="navToSection(1)" style="gap:6px;white-space:nowrap">Start consultation <span style="opacity:.8">→</span></button>
         </div>
 
         <!-- Profile strip -->
-        <div class="card mb-12" style="padding:16px 20px">
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:12px">
+        <div class="card mb-12" style="padding:20px 24px">
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-bottom:16px">
             <div>
-              <div class="text-xs" style="color:var(--subtle);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Blood type</div>
-              <div class="font-700" style="font-size:1.1rem" id="histBlood">—</div>
+              <div style="font-size:.6875rem;font-weight:600;color:var(--subtle);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Blood type</div>
+              <div style="font-size:1.25rem;font-weight:700;color:var(--text);letter-spacing:-.02em" id="histBlood">—</div>
             </div>
             <div>
-              <div class="text-xs" style="color:var(--subtle);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Age group</div>
-              <div class="font-600 text-sm" id="histAge">—</div>
+              <div style="font-size:.6875rem;font-weight:600;color:var(--subtle);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Age group</div>
+              <div style="font-size:.9375rem;font-weight:600;color:var(--text)" id="histAge">—</div>
             </div>
             <div>
-              <div class="text-xs" style="color:var(--subtle);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Allergies</div>
-              <div id="histAllergyCount" class="font-600 text-sm">—</div>
+              <div style="font-size:.6875rem;font-weight:600;color:var(--subtle);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Allergies</div>
+              <div style="font-size:.9375rem;font-weight:600;color:var(--text)" id="histAllergyCount">—</div>
             </div>
             <div>
-              <div class="text-xs" style="color:var(--subtle);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Conditions</div>
-              <div id="histCondCount" class="font-600 text-sm">—</div>
+              <div style="font-size:.6875rem;font-weight:600;color:var(--subtle);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Conditions</div>
+              <div style="font-size:.9375rem;font-weight:600;color:var(--text)" id="histCondCount">—</div>
             </div>
           </div>
-          <div style="border-top:1px solid var(--border);padding-top:10px;text-align:right">
+          <div style="border-top:1px solid var(--border);padding-top:12px;display:flex;justify-content:flex-end">
             <button class="edit-btn" onclick="openEditModal('profile')">✏️ Edit profile</button>
           </div>
         </div>
 
         <!-- Allergies -->
         <div class="card mb-12" id="histAllergyCard">
-          <div class="card-header">
-            <div class="card-title">⚠️ Allergies &amp; intolerances</div>
+          <div class="card-header" style="margin-bottom:12px">
+            <div class="card-title" style="display:flex;align-items:center;gap:7px"><span style="font-size:1rem">⚠️</span> Allergies &amp; intolerances</div>
             <button class="edit-btn" onclick="openEditModal('allergies')">✏️ Edit</button>
           </div>
           <div id="histAllergies" class="flex gap-8" style="flex-wrap:wrap"></div>
@@ -141,8 +144,8 @@
 
         <!-- Current medications -->
         <div class="card mb-12" id="histMedsCard">
-          <div class="card-header">
-            <div class="card-title">💊 Current medications</div>
+          <div class="card-header" style="margin-bottom:12px">
+            <div class="card-title" style="display:flex;align-items:center;gap:7px"><span>💊</span> Current medications</div>
             <button class="edit-btn" onclick="openEditModal('medications')">✏️ Edit</button>
           </div>
           <div id="histMeds" class="stack-8"></div>
@@ -150,8 +153,8 @@
 
         <!-- Vaccinations -->
         <div class="card mb-12">
-          <div class="card-header">
-            <div class="card-title">💉 Vaccinations</div>
+          <div class="card-header" style="margin-bottom:12px">
+            <div class="card-title" style="display:flex;align-items:center;gap:7px"><span>💉</span> Vaccinations</div>
             <button class="edit-btn" onclick="openEditModal('vaccinations')">✏️ Edit</button>
           </div>
           <div id="histVacc" class="stack-8"></div>
@@ -159,8 +162,8 @@
 
         <!-- Recent travels -->
         <div class="card mb-12">
-          <div class="card-header">
-            <div class="card-title">✈️ Recent travels</div>
+          <div class="card-header" style="margin-bottom:12px">
+            <div class="card-title" style="display:flex;align-items:center;gap:7px"><span>✈️</span> Recent travels</div>
             <button class="edit-btn" onclick="openEditModal('travels')">✏️ Edit</button>
           </div>
           <div id="histTravels" class="stack-8"></div>
@@ -168,17 +171,17 @@
 
         <!-- Past consultations -->
         <div class="card mb-12" style="padding:0;overflow:hidden">
-          <div style="padding:14px 20px;border-bottom:1px solid var(--border);background:var(--surface-2);display:flex;align-items:center;justify-content:space-between">
-            <div class="card-title">📅 Consultation history</div>
-            <span class="text-xs" style="color:var(--subtle)" id="histConsultCount">0 records</span>
+          <div style="padding:16px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+            <div class="card-title" style="display:flex;align-items:center;gap:7px"><span>📅</span> Consultation history</div>
+            <span class="badge badge-gray" id="histConsultCount">0 records</span>
           </div>
-          <div class="timeline" style="padding:20px" id="histTimeline"></div>
+          <div class="timeline" style="padding:20px 24px" id="histTimeline"></div>
         </div>
 
         <!-- Clinical notes -->
         <div class="card" id="histNotesCard">
-          <div class="card-header"><div class="card-title">🩺 Doctor's notes</div></div>
-          <p class="text-sm" id="histNotes" style="color:var(--text-2);line-height:1.7"></p>
+          <div class="card-header" style="margin-bottom:12px"><div class="card-title" style="display:flex;align-items:center;gap:7px"><span>🩺</span> Doctor's notes</div></div>
+          <div class="text-sm" id="histNotes" style="color:var(--text-2);line-height:1.7"></div>
         </div>
 
       </div>
@@ -496,8 +499,8 @@
 .vacc-row:last-child { border-bottom: none; }
 </style>
 
-<script src="app.js?v=7"></script>
-<script src="patient.js?v=7"></script>
-<script src="tracker.js?v=7"></script>
+<script src="app.js?v=8"></script>
+<script src="patient.js?v=8"></script>
+<script src="tracker.js?v=8"></script>
 </body>
 </html>

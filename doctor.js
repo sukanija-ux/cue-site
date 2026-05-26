@@ -49,7 +49,7 @@ function renderPatientList(query) {
       '<div class="pt-row-cond truncate">' + p.condition + '</div>' +
       '<div class="flex items-center justify-between mt-6">' +
         '<div class="sparkline" style="height:20px">' + bars + '</div>' +
-        '<span class="text-xs font-600" style="color:' + severityColor(sev) + '">' + sev + '/10</span>' +
+        '<span class="text-xs font-600" style="color:' + severityColor(sev) + '">' + (sev != null ? sev + '/10' : '—') + '</span>' +
       '</div>' +
     '</div>';
   }).join('');
@@ -159,7 +159,7 @@ function renderQueue(filter) {
       '<div class="text-sm mb-4"><strong>AI Diagnosis:</strong> ' + p.diagnosis.name +
         ' <span class="font-mono text-xs" style="color:var(--muted);margin-left:4px">' + p.diagnosis.icd + '</span>' +
       '</div>' +
-      '<div class="text-xs mb-10" style="color:var(--muted)">Severity: <strong style="color:' + severityColor(p.currentSeverity) + '">' + p.currentSeverity + '/10</strong> · ' + p.daysTracked + ' days tracked' +
+      '<div class="text-xs mb-10" style="color:var(--muted)">Severity: <strong style="color:' + severityColor(p.currentSeverity) + '">' + (p.currentSeverity != null ? p.currentSeverity + '/10' : '—') + '</strong> · ' + (p.daysTracked || 0) + ' days tracked' +
         (p.diagnosis.confirmed ? ' · Confirmed by <span class="font-mono">' + (p.diagnosis.confirmedBy||'DR-???') + '</span>' : '') +
       '</div>' +
       (p.checkins.length > 0 ? '<hr class="divider mb-10"><div class="flex gap-12" style="flex-wrap:wrap">' + bars + '</div>' : '') +

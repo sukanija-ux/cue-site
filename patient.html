@@ -172,31 +172,37 @@
         </div>
 
         <!-- Chat (hidden until consent) -->
-        <div id="chatCard" style="display:none;max-width:620px;margin:0 auto">
+        <div id="chatCard" style="display:none;max-width:580px;margin:0 auto">
 
-          <div class="flex items-center justify-between mb-8">
-            <span class="text-sm font-600" id="questionCategory">Chief Complaint</span>
-            <span class="text-xs" style="color:var(--subtle)" id="questionCounter">1 / 9</span>
+          <!-- Progress header -->
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <span style="font-size:.72rem;font-weight:600;color:var(--subtle);text-transform:uppercase;letter-spacing:.07em" id="questionCategory">Getting started</span>
+            <span style="font-size:.72rem;color:var(--subtle)" id="questionCounter"></span>
           </div>
-          <div class="progress-track mb-16"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+          <div class="progress-track mb-16" style="height:3px"><div class="progress-fill" id="progressFill" style="width:0%;transition:width .4s ease"></div></div>
 
-          <div id="chatContainer" class="chat-area" style="min-height:260px"></div>
+          <!-- Chat messages -->
+          <div id="chatContainer" class="chat-area" style="min-height:280px;max-height:420px;overflow-y:auto"></div>
 
-          <div class="chat-input-bar">
+          <!-- Quick reply chips (populated dynamically) -->
+          <div id="quickRepliesBar" style="min-height:0;padding:0"></div>
+
+          <!-- Input bar -->
+          <div class="chat-input-bar" style="margin-top:10px">
             <button class="record-btn" id="recordBtn" onclick="toggleRecording()" title="Tap to record">🎙️</button>
             <div class="waveform idle" id="waveform">
               <div class="wave-bar"></div><div class="wave-bar"></div>
               <div class="wave-bar"></div><div class="wave-bar"></div>
               <div class="wave-bar"></div>
             </div>
-            <input id="typeInput" type="text" placeholder="Type your answer…"
-              onkeydown="if(event.key==='Enter')sendTyped()" />
+            <input id="typeInput" type="text" placeholder="Type here or tap the mic…"
+              onkeydown="if(event.key==='Enter')sendTyped()" autocomplete="off" />
             <span id="langBadge" style="display:none;font-size:.72rem;color:var(--accent);white-space:nowrap"></span>
-            <button class="btn btn-primary btn-sm" onclick="sendTyped()">Send</button>
+            <button class="btn btn-primary btn-sm" id="sendBtn" onclick="sendTyped()">Send</button>
           </div>
-          <div class="flex justify-between mt-8">
-            <span class="text-xs" style="color:var(--subtle)" id="waveLabel">Tap mic to speak</span>
-            <button onclick="skipQuestion()" style="background:none;border:none;cursor:pointer;font-size:.75rem;color:var(--subtle)">Skip →</button>
+          <div class="flex justify-between mt-6">
+            <span style="font-size:.72rem;color:var(--subtle)" id="waveLabel">🎙 Tap mic to speak</span>
+            <button onclick="skipQuestion()" style="background:none;border:none;cursor:pointer;font-size:.72rem;color:var(--subtle);padding:0">Skip this →</button>
           </div>
         </div>
       </div>
@@ -411,6 +417,28 @@
 
 
 <style>
+/* Quick reply chips */
+.quick-replies {
+  display: flex; flex-wrap: wrap; gap: 7px;
+  padding: 10px 0 4px 46px;
+  animation: fadeIn .2s ease;
+}
+.quick-reply-chip {
+  background: var(--surface); border: 1.5px solid var(--accent-mid);
+  color: var(--accent-h); font-size: .8rem; padding: 6px 14px;
+  border-radius: var(--r-full); cursor: pointer; font-family: var(--font);
+  transition: all .12s; white-space: nowrap; line-height: 1;
+}
+.quick-reply-chip:hover { background: var(--accent-bg); border-color: var(--accent); transform: translateY(-1px); }
+.quick-reply-chip:active { transform: translateY(0); }
+
+/* Chat bubble fade-in */
+@keyframes bubbleIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.chat-row { animation: bubbleIn .22s ease forwards; }
+
 /* Health record form */
 .hr-section { padding: 16px 0; border-bottom: 1px solid var(--border); }
 .hr-section:first-child { padding-top: 12px; }
@@ -459,8 +487,8 @@
 .hr-vacc-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; }
 </style>
 
-<script src="app.js?v=10"></script>
-<script src="patient.js?v=10"></script>
-<script src="tracker.js?v=10"></script>
+<script src="app.js?v=11"></script>
+<script src="patient.js?v=11"></script>
+<script src="tracker.js?v=11"></script>
 </body>
 </html>

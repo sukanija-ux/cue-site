@@ -22,38 +22,62 @@ const unlockedTo = { 0: true, 1: true, 2: false, 3: false, 4: false };
 var QUESTIONS = [];
 
 function buildTailoredQuestions(history) {
-  var fn       = history.firstName || localStorage.getItem('cue_firstname') || '';
+  var fn        = history.firstName || localStorage.getItem('cue_firstname') || 'there';
   var condNames = (history.chronicConditions || []).map(function(c) { return c.label; });
   var medNames  = (history.currentMedications || []).map(function(m) { return m.name; });
   var hasConds  = condNames.length > 0;
   var hasMeds   = medNames.length > 0;
   var recentTravel = (history.recentTravels || [])[0];
 
-  var q1 = 'Hi ' + (fn || 'there') + ' — I\'m Cue\'s clinical AI. ';
-  if (hasConds) q1 += 'Your record shows a history of ' + condNames.slice(0,2).join(' and ') + '. ';
-  if (hasMeds && medNames.length <= 3) q1 += 'I can see you\'re on ' + medNames.join(', ') + '. ';
-  q1 += 'I\'ll ask a few short questions. What\'s brought you in today?';
+  // Q1 — warm opener, no clinical data dump
+  var q1 = 'Hi ' + fn + ' 👋 I\'m here to take a quick history before your appointment — just a few questions to help your doctor prepare. In your own words, what\'s been going on?';
 
-  var q3 = 'Where exactly do you feel it, and how would you describe the sensation — sharp, dull, burning, throbbing, cramping, pressure, or tightness?';
+  // Q3 — location only (character asked separately in Q4)
+  var q3 = 'Where exactly do you feel it?';
   if (condNames.some(function(c) { return /migraine|headache/i.test(c); }))
-    q3 = 'Where is the pain? Is it in the same location as your usual migraines, or somewhere different — and what does it feel like?';
+    q3 = 'Is the pain in the same spot as your usual migraines, or somewhere different this time?';
+  else if (condNames.some(function(c) { return /IBS|bowel|gastro|crohn/i.test(c); }))
+    q3 = 'Is the discomfort in the same area as usual, or somewhere new?';
 
+  // Q7 — modifying factors, personalised to meds
   var q7 = 'Is there anything that makes it better or worse?';
-  if (hasMeds) q7 += ' Have you tried ' + medNames.slice(0,2).join(' or ') + '?';
+  if (hasMeds && medNames.length === 1)
+    q7 = 'Have you tried ' + medNames[0] + ' for it — and did it help?';
+  else if (hasMeds)
+    q7 = 'Have you tried any of your usual medications for it, or anything over the counter — did it help?';
 
-  var q9 = 'Last check — any chest pain, difficulty breathing, weakness or numbness in your limbs, blood in urine or stool, or a headache you\'d describe as the worst of your life? If yes to any of these, please seek emergency care immediately.';
-  if (recentTravel) q9 = 'Given your recent trip to ' + recentTravel.destination + ' — any fever, rash, or new GI symptoms after returning? ' + q9;
+  // Q8 — context, tailored to what we know
+  var q8 = 'Any other conditions, recent illnesses, or medications I should know about?';
+  if (hasConds)
+    q8 = 'Does this feel similar to your usual ' + condNames[0] + ', or is it a bit different this time?';
+  else if (recentTravel)
+    q8 = 'You recently travelled to ' + recentTravel.destination + ' — did the symptoms start around that time, or were they there before?';
+
+  // Q9 — safety screen, short and calm
+  var q9 = 'Last question — any chest pain, difficulty breathing, weakness or numbness in your arms or face, or a headache you\'d call the worst you\'ve ever had?';
+  if (recentTravel && !hasConds)
+    q9 = 'Since your trip to ' + recentTravel.destination + ' — have you had any fever, rash, or stomach symptoms that started after you got back?';
 
   return [
-    { cat: 'Chief Complaint',     q: q1 },
-    { cat: 'Onset & Duration',    q: 'When did this start, and has it been getting better, worse, or staying the same?' },
-    { cat: 'Site & Character',    q: q3 },
-    { cat: 'Severity',            q: 'On a scale of 0 to 10 — how bad is it right now?' + (hasConds ? ' How does that compare to your usual ' + condNames[0] + '?' : '') },
-    { cat: 'Radiation & Pattern', q: 'Does it stay in one place, or does it spread? Is it constant or does it come and go?' },
-    { cat: 'Associated Symptoms', q: 'Any other symptoms alongside this — fever, nausea, vomiting, breathlessness, dizziness, or a rash?' },
-    { cat: 'Modifying Factors',   q: q7 },
-    { cat: 'Medical History',     q: hasConds ? 'Aside from your known ' + condNames.slice(0,2).join(' and ') + ', any other recent illnesses, hospitalisations, or medication changes?' : 'Any other known medical conditions, medications, or allergies I should flag?' },
-    { cat: 'Safety Screen',       q: q9 },
+    { cat: 'How are you today?',        q: q1,  quickReplies: null },
+    { cat: 'When did it start?',        q: 'When did this start?',
+      quickReplies: ['Today', 'Yesterday', '2–3 days ago', 'About a week ago', 'Longer'] },
+    { cat: 'Where is it?',              q: q3,
+      quickReplies: hasConds ? ['Same as usual', 'Somewhere different', 'Both'] : null },
+    { cat: 'What does it feel like?',   q: 'How would you describe the sensation — sharp, dull, throbbing, burning, cramping, or pressure?',
+      quickReplies: ['Sharp / stabbing', 'Dull / aching', 'Throbbing / pulsing', 'Burning', 'Cramping', 'Pressure'] },
+    { cat: 'How bad is it?',            q: 'On a scale of 0–10, how would you rate it right now — 0 being nothing at all, 10 the worst imaginable?',
+      quickReplies: ['1','2','3','4','5','6','7','8','9','10'] },
+    { cat: 'Anything else going on?',   q: 'Any other symptoms alongside this?',
+      quickReplies: ['No, just this', 'Fever / chills', 'Nausea / vomiting', 'Dizziness', 'Breathlessness', 'Fatigue'] },
+    { cat: 'What helps or makes it worse?', q: q7,
+      quickReplies: hasMeds
+        ? ['Yes, helped a lot', 'Helped a little', 'No effect', 'Made it worse', "Haven't tried"]
+        : ['Rest helps', 'Heat helps', 'Cold helps', 'Nothing helps', 'Not sure'] },
+    { cat: 'Background',                q: q8,
+      quickReplies: hasConds ? ['Very similar', 'A bit different', 'Quite different'] : null },
+    { cat: 'Safety check',              q: q9,
+      quickReplies: ['None of these', 'Yes — at least one'] },
   ];
 }
 
@@ -761,37 +785,85 @@ function startStaticInterview() {
 }
 
 // ── Chat helpers ──────────────────────────────────────────────
-function addAIBubble(text, category) {
-  var container = document.getElementById('chatContainer');
-  if (category) {
-    var label = document.createElement('div');
-    label.style.cssText = 'font-size:.65rem;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--subtle);margin:4px 0 2px 36px';
-    label.textContent = category;
-    container.appendChild(label);
-  }
-  var wrap = document.createElement('div');
-  wrap.className = 'chat-row';
-  wrap.innerHTML = '<div class="avatar ai">🤖</div><div><div class="bubble ai">' + text + '</div><div class="bubble-time">' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) + '</div></div>';
+function addAIBubble(text, category, quickReplies) {
+  // Clear existing quick replies
+  clearQuickReplies();
 
+  var container = document.getElementById('chatContainer');
+
+  // Show typing indicator first
   var typingWrap = document.createElement('div');
   typingWrap.className = 'chat-row';
-  typingWrap.innerHTML = '<div class="avatar ai">🤖</div><div class="bubble ai typing"><div class="typing-dots"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>';
+  typingWrap.id = 'typingIndicator';
+  typingWrap.innerHTML = '<div class="avatar ai">🩺</div><div class="bubble ai typing"><div class="typing-dots"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>';
   container.appendChild(typingWrap);
   scrollChat();
+
   setTimeout(function() {
-    container.removeChild(typingWrap);
+    // Remove typing indicator
+    var ti = document.getElementById('typingIndicator');
+    if (ti) ti.remove();
+
+    // Update category label
+    if (category) {
+      var catEl = document.getElementById('questionCategory');
+      if (catEl) catEl.textContent = category;
+    }
+
+    // Add AI bubble
+    var wrap = document.createElement('div');
+    wrap.className = 'chat-row';
+    wrap.innerHTML = '<div class="avatar ai">🩺</div><div><div class="bubble ai">' + escapeHtml(text) + '</div><div class="bubble-time">' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) + '</div></div>';
     container.appendChild(wrap);
     scrollChat();
-  }, 550);
+
+    // Render quick reply chips
+    if (quickReplies && quickReplies.length) {
+      renderQuickReplies(quickReplies);
+    }
+
+    // Auto-focus input
+    setTimeout(function() {
+      var inp = document.getElementById('typeInput');
+      if (inp && !inp.disabled) inp.focus();
+    }, 120);
+  }, 600 + Math.random() * 200);
 }
 
 function addUserBubble(text) {
+  clearQuickReplies();
   var container = document.getElementById('chatContainer');
   var wrap = document.createElement('div');
   wrap.className = 'chat-row user';
-  wrap.innerHTML = '<div><div class="bubble user">' + text + '</div><div class="bubble-time" style="text-align:left">' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) + '</div></div><div class="avatar user">👤</div>';
+  wrap.innerHTML = '<div><div class="bubble user">' + escapeHtml(text) + '</div><div class="bubble-time" style="text-align:left">' + new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) + '</div></div><div class="avatar user">👤</div>';
   container.appendChild(wrap);
   scrollChat();
+}
+
+function renderQuickReplies(replies) {
+  var bar = document.getElementById('quickRepliesBar');
+  if (!bar) return;
+  var chips = replies.map(function(r) {
+    var safe = r.replace(/'/g, '&#39;');
+    return '<button class="quick-reply-chip" onclick="pickQuickReply(\'' + safe + '\')">' + r + '</button>';
+  }).join('');
+  bar.innerHTML = '<div class="quick-replies">' + chips + '</div>';
+}
+
+function clearQuickReplies() {
+  var bar = document.getElementById('quickRepliesBar');
+  if (bar) bar.innerHTML = '';
+}
+
+function pickQuickReply(text) {
+  clearQuickReplies();
+  var input = document.getElementById('typeInput');
+  if (input) input.value = text;
+  sendTyped();
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
 function scrollChat() {

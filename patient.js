@@ -1,117 +1,61 @@
 /* ============================================================
    Cue — Patient page logic
-   Health History → SOCRATES intake → Summary → Treatment → Tracking
+   Health History → Dynamic AI intake → Summary → Treatment → Tracking
    ============================================================ */
 
 const _p = window.CUE;
 
-// QUESTIONS is built dynamically per patient — see buildTailoredQuestions()
-var QUESTIONS = [];
-
-// ── Build tailored questions based on patient health history ──
-function buildTailoredQuestions(history) {
-  var fn        = history.firstName || localStorage.getItem('cue_firstname') || '';
-  var conditions = history.chronicConditions || [];
-  var meds       = history.currentMedications || [];
-  var allergies  = history.allergies || [];
-  var travels    = history.recentTravels || [];
-
-  var condNames  = conditions.map(function(c) { return c.label; });
-  var medNames   = meds.map(function(m) { return m.name; });
-  var allergyNames = allergies.slice();
-
-  var hasConds    = condNames.length > 0;
-  var hasMeds     = medNames.length > 0;
-  var hasAllergies = allergyNames.length > 0;
-  var hasTravels  = travels.length > 0;
-
-  var recentTravel = hasTravels ? travels[0] : null;
-
-  // Q1 — personalised greeting + context
-  var q1 = 'Hi ' + (fn || 'there') + ' — I\'m Cue\'s clinical AI, here to take a quick history before your appointment. ';
-  if (hasConds) {
-    var condStr = condNames.slice(0, 2).join(' and ');
-    q1 += 'Your record shows a history of ' + condStr + '. ';
-  }
-  if (hasMeds && medNames.length <= 3) {
-    q1 += 'I can see you\'re currently on ' + medNames.join(', ') + '. ';
-  } else if (hasMeds) {
-    q1 += 'I can see you\'re on several regular medications. ';
-  }
-  q1 += 'I\'ll ask nine short questions — please answer as freely as you like. What\'s brought you in today?';
-
-  // Q3 — site/character, tailored to known conditions
-  var q3 = 'Where exactly do you feel it? ';
-  if (condNames.some(function(c) { return /migraine|headache/i.test(c); })) {
-    q3 += 'Is it in the same location as your usual migraines, or somewhere different? ';
-  } else if (condNames.some(function(c) { return /bowel|gastro|IBS/i.test(c); })) {
-    q3 += 'Is the discomfort localised, or spread across your abdomen? ';
-  } else if (condNames.some(function(c) { return /arthritis|knee|joint/i.test(c); })) {
-    q3 += 'Is this affecting the same joint as your usual arthritis, or a new area? ';
-  }
-  q3 += 'How would you describe the sensation — sharp, dull, burning, throbbing, cramping, pressure, or tightness?';
-
-  // Q7 — modifying factors, including medications they're on
-  var q7 = 'Is there anything that makes it better or worse — rest, movement, eating, heat, cold, or position? ';
-  if (hasMeds) {
-    q7 += 'Have you tried any of your usual medications — ' + medNames.slice(0, 2).join(' or ') + ' — and if so, did they help?';
-  } else {
-    q7 += 'Have you taken any over-the-counter medication or supplements for it?';
-  }
-
-  // Q8 — medical history, pre-filled with what we know
-  var q8 = '';
-  if (hasConds) {
-    q8 = 'Aside from your known ' + condNames.slice(0, 2).join(' and ') + ', have you had any other significant illnesses, hospitalisations, or surgeries recently? ';
-  } else {
-    q8 = 'Do you have any other known medical conditions or recent hospitalisations? ';
-  }
-  if (hasMeds) {
-    q8 += 'Are you still taking ' + medNames.slice(0, 2).join(' and ') + ' as prescribed, or has anything changed? ';
-  } else {
-    q8 += 'Are you on any medications, supplements, or over-the-counter drugs? ';
-  }
-  if (hasAllergies) {
-    q8 += 'I have ' + allergyNames.join(' and ') + ' on your allergy record — please confirm this is still accurate, and mention any new reactions.';
-  } else {
-    q8 += 'Do you have any drug allergies or intolerances I should flag for your doctor?';
-  }
-
-  // Q9 — red flag screen, tailored to their risk profile
-  var q9 = 'Last set of safety questions — important ones. ';
-  if (condNames.some(function(c) { return /migraine/i.test(c); })) {
-    q9 += 'Have you had a headache that feels different from your usual migraines — sudden, severe, "worst of your life", or associated with neck stiffness? ';
-  }
-  if (condNames.some(function(c) { return /hypertension|diabetes|heart/i.test(c); })) {
-    q9 += 'Any chest tightness, palpitations, or sudden shortness of breath? ';
-  }
-  if (recentTravel) {
-    q9 += 'Given your recent trip to ' + recentTravel.destination + ' — any fever, unusual rash, or gastrointestinal symptoms that started after you returned? ';
-  }
-  q9 += 'Also: any weakness or numbness in your face or limbs, blood in your urine, stool or vomit, or loss of consciousness? If yes to any of these, please seek emergency care immediately.';
-
-  return [
-    { cat: 'Chief Complaint',        q: q1 },
-    { cat: 'Onset & Duration',       q: 'When exactly did this start? Was it sudden — coming on in minutes or hours — or did it build up gradually over days or weeks? Has it been getting better, worse, or staying the same since it started?' },
-    { cat: 'Site & Character',       q: q3 },
-    { cat: 'Severity',               q: 'On a scale of 0 to 10 — where 0 is nothing and 10 is the worst you can imagine — how bad is it right now? ' + (hasConds ? 'How does this compare to what you usually experience with your ' + condNames[0] + '?' : 'Is it affecting your ability to work, sleep, or carry out daily tasks?') },
-    { cat: 'Radiation & Pattern',    q: 'Does it stay in one place, or does it spread anywhere else? Is it constant, or does it come and go in waves or episodes? If it comes and goes — how long do episodes last?' },
-    { cat: 'Associated Symptoms',    q: 'Have you noticed any other symptoms alongside this — such as fever, chills, night sweats, nausea, vomiting, shortness of breath, dizziness, unusual fatigue, or a rash? Even things that seem unrelated can be useful.' },
-    { cat: 'Modifying Factors',      q: q7 },
-    { cat: 'Medical History',        q: q8 },
-    { cat: 'Safety Screen',          q: q9 },
-  ];
-}
-
-let currentSection = 0;
-let currentQ       = 0;
-let answers        = [];
-let isRecording    = false;
-let recTimer       = null;
-let selectedLang   = 'auto';
-let diagResult     = null;
+// ── State ─────────────────────────────────────────────────────
+let currentSection  = 0;
+let currentQ        = 0;          // used only in static fallback mode
+let answers         = [];         // [{question, cat, text}] — static fallback
+let _clinicalMsgs   = [];         // [{role, content}] — LLM conversation history
+let _dynamicMode    = false;      // true when LLM interview is active
+let isRecording     = false;
+let recTimer        = null;
+let selectedLang    = 'auto';
+let diagResult      = null;
 
 const unlockedTo = { 0: true, 1: true, 2: false, 3: false, 4: false };
+
+// ── Static fallback questions (used when no API key) ─────────
+var QUESTIONS = [];
+
+function buildTailoredQuestions(history) {
+  var fn       = history.firstName || localStorage.getItem('cue_firstname') || '';
+  var condNames = (history.chronicConditions || []).map(function(c) { return c.label; });
+  var medNames  = (history.currentMedications || []).map(function(m) { return m.name; });
+  var hasConds  = condNames.length > 0;
+  var hasMeds   = medNames.length > 0;
+  var recentTravel = (history.recentTravels || [])[0];
+
+  var q1 = 'Hi ' + (fn || 'there') + ' — I\'m Cue\'s clinical AI. ';
+  if (hasConds) q1 += 'Your record shows a history of ' + condNames.slice(0,2).join(' and ') + '. ';
+  if (hasMeds && medNames.length <= 3) q1 += 'I can see you\'re on ' + medNames.join(', ') + '. ';
+  q1 += 'I\'ll ask a few short questions. What\'s brought you in today?';
+
+  var q3 = 'Where exactly do you feel it, and how would you describe the sensation — sharp, dull, burning, throbbing, cramping, pressure, or tightness?';
+  if (condNames.some(function(c) { return /migraine|headache/i.test(c); }))
+    q3 = 'Where is the pain? Is it in the same location as your usual migraines, or somewhere different — and what does it feel like?';
+
+  var q7 = 'Is there anything that makes it better or worse?';
+  if (hasMeds) q7 += ' Have you tried ' + medNames.slice(0,2).join(' or ') + '?';
+
+  var q9 = 'Last check — any chest pain, difficulty breathing, weakness or numbness in your limbs, blood in urine or stool, or a headache you\'d describe as the worst of your life? If yes to any of these, please seek emergency care immediately.';
+  if (recentTravel) q9 = 'Given your recent trip to ' + recentTravel.destination + ' — any fever, rash, or new GI symptoms after returning? ' + q9;
+
+  return [
+    { cat: 'Chief Complaint',     q: q1 },
+    { cat: 'Onset & Duration',    q: 'When did this start, and has it been getting better, worse, or staying the same?' },
+    { cat: 'Site & Character',    q: q3 },
+    { cat: 'Severity',            q: 'On a scale of 0 to 10 — how bad is it right now?' + (hasConds ? ' How does that compare to your usual ' + condNames[0] + '?' : '') },
+    { cat: 'Radiation & Pattern', q: 'Does it stay in one place, or does it spread? Is it constant or does it come and go?' },
+    { cat: 'Associated Symptoms', q: 'Any other symptoms alongside this — fever, nausea, vomiting, breathlessness, dizziness, or a rash?' },
+    { cat: 'Modifying Factors',   q: q7 },
+    { cat: 'Medical History',     q: hasConds ? 'Aside from your known ' + condNames.slice(0,2).join(' and ') + ', any other recent illnesses, hospitalisations, or medication changes?' : 'Any other known medical conditions, medications, or allergies I should flag?' },
+    { cat: 'Safety Screen',       q: q9 },
+  ];
+}
 
 // ── Init ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
@@ -126,6 +70,11 @@ document.addEventListener('DOMContentLoaded', function() {
   // Consent screen ID
   var consentId = document.getElementById('consentId');
   if (consentId) consentId.textContent = id;
+
+  // API key status badge
+  onApiKeyInput(localStorage.getItem('cue_api_key') || '');
+  var clearBtn = document.getElementById('clearKeyBtn');
+  if (clearBtn) clearBtn.style.display = localStorage.getItem('cue_api_key') ? '' : 'none';
 
   // Render health history
   renderHealthHistory(id, fn);
@@ -575,23 +524,240 @@ function unlockSection(n) {
   navToSection(n);
 }
 
+// ── API key helpers ───────────────────────────────────────────
+function onApiKeyInput(val) {
+  var stored = localStorage.getItem('cue_api_key') || '';
+  var badge  = document.getElementById('apiKeyStatus');
+  var clear  = document.getElementById('clearKeyBtn');
+  if (!badge) return;
+  if (val.trim().startsWith('sk-ant')) {
+    badge.textContent = '● AI interview enabled';
+    badge.className = 'badge badge-teal';
+  } else if (stored.startsWith('sk-ant')) {
+    badge.textContent = '● Saved key active';
+    badge.className = 'badge badge-teal';
+  } else {
+    badge.textContent = '● Standard questionnaire';
+    badge.className = 'badge badge-gray';
+  }
+  if (clear) clear.style.display = stored ? '' : 'none';
+}
+
+function clearApiKey() {
+  localStorage.removeItem('cue_api_key');
+  var input = document.getElementById('apiKeyInput');
+  if (input) input.value = '';
+  onApiKeyInput('');
+}
+
 // ── Consent ───────────────────────────────────────────────────
 function proceedFromConsent() {
   if (!document.getElementById('check1').checked || !document.getElementById('check2').checked) {
     alert('Please agree to both consent statements to continue.');
     return;
   }
-  // Build tailored questions from patient's health history
-  var h = _p.getHealthHistory(_p.Session.id);
-  QUESTIONS = buildTailoredQuestions(h);
+
+  // Save API key if provided in the input
+  var keyInput = document.getElementById('apiKeyInput');
+  if (keyInput && keyInput.value.trim().startsWith('sk-ant')) {
+    localStorage.setItem('cue_api_key', keyInput.value.trim());
+  }
 
   _p.Audit.log('consent_given', _p.Session.id);
   document.getElementById('consentCard').style.display = 'none';
   document.getElementById('chatCard').style.display = '';
-  currentQ = 0;
-  answers  = [];
+
+  var hasKey = !!localStorage.getItem('cue_api_key');
+  if (hasKey) {
+    startDynamicInterview();
+  } else {
+    startStaticInterview();
+  }
+}
+
+// ── Dynamic AI interview ──────────────────────────────────────
+function buildPatientContext(h) {
+  var lines = ['PATIENT HEALTH RECORD (pre-loaded — use to personalise your questions, do not read it back verbatim):'];
+  lines.push('Age group: ' + (h.ageGroup || 'Not specified'));
+  lines.push('Blood type: ' + (h.bloodType || 'Unknown'));
+  if (h.allergies && h.allergies.length)
+    lines.push('Known allergies: ' + h.allergies.join(', '));
+  if (h.chronicConditions && h.chronicConditions.length)
+    lines.push('Chronic conditions: ' + h.chronicConditions.map(function(c) { return c.label + ' (' + c.status + ', since ' + c.since + ')'; }).join('; '));
+  if (h.currentMedications && h.currentMedications.length)
+    lines.push('Current medications: ' + h.currentMedications.map(function(m) { return m.name + ' — ' + m.dose; }).join('; '));
+  if (h.recentTravels && h.recentTravels.length)
+    lines.push('Recent travels: ' + h.recentTravels.map(function(t) { return t.destination + ' (' + t.date + ', ' + t.duration + ')'; }).join('; '));
+  if (h.pastConsultations && h.pastConsultations.length)
+    lines.push('Recent consultations: ' + h.pastConsultations.slice(0,3).map(function(c) { return c.condition + ' (' + c.date + ')'; }).join('; '));
+  lines.push('Patient first name: ' + (h.firstName || localStorage.getItem('cue_firstname') || 'not known'));
+  return lines.join('\n');
+}
+
+async function startDynamicInterview() {
+  _dynamicMode   = true;
+  _clinicalMsgs  = [];
+  answers        = [];
+  currentQ       = 0;
+
+  var h          = _p.getHealthHistory(_p.Session.id);
+  var context    = buildPatientContext(h);
+  var systemFull = _p.CLINICAL_SYSTEM_PROMPT + '\n\n' + context;
+
+  updateProgress(0);
+  setInputEnabled(false);
+  showTypingIndicator();
+
+  try {
+    // Seed: ask Claude to open the interview
+    _clinicalMsgs.push({ role: 'user', content: '[BEGIN INTERVIEW — greet the patient and ask your opening question]' });
+    var raw     = await _p.callClaude(_clinicalMsgs, systemFull);
+    var parsed  = _p.parseClinicalResponse(raw);
+    _clinicalMsgs.push({ role: 'assistant', content: raw });
+    removeTypingIndicator();
+    addAIBubble(parsed.response, 'Chief Complaint');
+    setInputEnabled(true);
+    updateProgress(5);
+  } catch (err) {
+    removeTypingIndicator();
+    handleApiError(err);
+  }
+}
+
+async function sendDynamicAnswer(text) {
+  addUserBubble(text);
+  answers.push({ question: '(dynamic)', cat: 'AI interview', text: text });
+  currentQ++;
+  setInputEnabled(false);
+  showTypingIndicator();
+
+  var h          = _p.getHealthHistory(_p.Session.id);
+  var systemFull = _p.CLINICAL_SYSTEM_PROMPT + '\n\n' + buildPatientContext(h);
+  _clinicalMsgs.push({ role: 'user', content: text });
+
+  try {
+    var raw    = await _p.callClaude(_clinicalMsgs, systemFull);
+    var parsed = _p.parseClinicalResponse(raw);
+    _clinicalMsgs.push({ role: 'assistant', content: raw });
+    removeTypingIndicator();
+
+    if (parsed.synthesize) {
+      // Show the farewell response then transition to analysis
+      if (parsed.response) addAIBubble(parsed.response, 'Summary');
+      updateProgress(100);
+      await _p.sleep(900);
+      applySynthesis(parsed.synthesize);
+    } else {
+      addAIBubble(parsed.response, 'Question ' + (currentQ + 1));
+      updateProgress(Math.min(90, currentQ * 12));
+      setInputEnabled(true);
+    }
+  } catch (err) {
+    removeTypingIndicator();
+    handleApiError(err);
+    setInputEnabled(true);
+  }
+}
+
+function applySynthesis(jsonStr) {
+  try {
+    var data = JSON.parse(jsonStr);
+    // Attach checkin questions from the static bank
+    data.checkinQuestions = _p.CHECKIN_QUESTIONS[data.conditionKey] || _p.CHECKIN_QUESTIONS.default;
+    // Build SOAP notes HTML from the structured soap object
+    data.notes = buildSoapNotes(data.soap, data.diagnoses);
+    diagResult = data;
+    startAnalysis(true); // true = skip the fake loading, result is already computed
+  } catch (e) {
+    console.error('Synthesis parse error', e, jsonStr);
+    // Fall back to rule-based diagnosis on parse failure
+    _p.runDiagnosis(answers).then(function(r) { diagResult = r; startAnalysis(true); });
+  }
+}
+
+function buildSoapNotes(soap, diagnoses) {
+  if (!soap) return '<p style="color:var(--muted)">Notes not available.</p>';
+  var primaryDx = diagnoses && diagnoses[0] ? diagnoses[0].name : 'Pending';
+  var ptId = _p.Session.id;
+  var date = new Date().toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+
+  function row(label, value) {
+    return '<div style="display:flex;gap:12px;padding:6px 0;border-bottom:1px solid var(--border)">' +
+      '<span style="min-width:130px;font-size:.75rem;font-weight:600;color:var(--subtle);text-transform:uppercase;letter-spacing:.04em;padding-top:1px">' + label + '</span>' +
+      '<span style="font-size:.85rem;color:var(--text-2);flex:1;line-height:1.6">' + value + '</span>' +
+    '</div>';
+  }
+  function shead(label) {
+    return '<div style="margin:16px 0 8px;padding:6px 10px;background:var(--surface-2);border-radius:4px;border-left:3px solid var(--accent)">' +
+      '<span style="font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)">' + label + '</span>' +
+    '</div>';
+  }
+
+  return '<div style="font-family:var(--font)">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:10px;border-bottom:2px solid var(--border);margin-bottom:4px">' +
+      '<div>' +
+        '<div style="font-size:.8rem;font-weight:700;color:var(--text);margin-bottom:2px">CUE PRE-CONSULTATION NOTE</div>' +
+        '<div style="font-size:.72rem;color:var(--subtle)">' + ptId + ' &nbsp;·&nbsp; ' + date + ' &nbsp;·&nbsp; AI-powered</div>' +
+      '</div>' +
+      '<span class="badge badge-teal" style="font-size:.65rem">Claude Clinical AI</span>' +
+    '</div>' +
+    shead('S — Subjective') + row('HPI', soap.subjective || '—') +
+    shead('O — Objective')  + row('Findings', soap.objective  || 'Pending physical examination at consultation') +
+    shead('A — Assessment') + row('Primary Dx', '<strong>' + primaryDx + '</strong>') +
+      row('Reasoning', soap.assessment || '—') +
+      '<div style="margin:8px 0;padding:8px 12px;background:#FEF9C3;border-radius:4px;font-size:.78rem;color:#713F12">⚠️ AI-generated draft. Must be confirmed by the attending physician before any treatment.</div>' +
+    shead('P — Plan')       + row('Recommended', soap.plan || '—') +
+    '<div style="margin-top:12px;padding-top:8px;border-top:1px solid var(--border);font-size:.7rem;color:var(--subtle)">Generated by Claude Clinical AI (Dynamic OPQRST + VINDICATE reasoning)</div>' +
+  '</div>';
+}
+
+function handleApiError(err) {
+  var msg = err.message || 'Unknown error';
+  if (msg === 'NO_API_KEY' || msg.includes('401')) {
+    addAIBubble('I need an Anthropic API key to conduct the AI-powered interview. Please go back and enter your key, or continue with the standard questionnaire.', 'Error');
+    localStorage.removeItem('cue_api_key');
+  } else if (msg.includes('429')) {
+    addAIBubble('The AI is a bit busy right now. Please wait a moment and try sending your response again.', 'Notice');
+  } else {
+    addAIBubble('There was a connection issue (' + msg + '). Your response was recorded — please try sending again.', 'Notice');
+  }
+  setInputEnabled(true);
+}
+
+function setInputEnabled(enabled) {
+  var input   = document.getElementById('typeInput');
+  var sendBtn = document.querySelector('.chat-input-bar .btn-primary');
+  var recBtn  = document.getElementById('recordBtn');
+  if (input)   input.disabled   = !enabled;
+  if (sendBtn) sendBtn.disabled = !enabled;
+  if (recBtn)  recBtn.disabled  = !enabled;
+}
+
+function showTypingIndicator() {
+  if (document.getElementById('typingIndicator')) return;
+  var container = document.getElementById('chatContainer');
+  var wrap = document.createElement('div');
+  wrap.className = 'chat-row';
+  wrap.id = 'typingIndicator';
+  wrap.innerHTML = '<div class="avatar ai">🤖</div><div class="bubble ai typing"><div class="typing-dots"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>';
+  container.appendChild(wrap);
+  scrollChat();
+}
+
+function removeTypingIndicator() {
+  var el = document.getElementById('typingIndicator');
+  if (el) el.remove();
+}
+
+// ── Static fallback interview (no API key) ────────────────────
+function startStaticInterview() {
+  _dynamicMode = false;
+  var h = _p.getHealthHistory(_p.Session.id);
+  QUESTIONS = buildTailoredQuestions(h);
+  currentQ  = 0;
+  answers   = [];
   addAIBubble(QUESTIONS[0].q, QUESTIONS[0].cat);
-  updateProgress();
+  updateProgress(0);
 }
 
 // ── Chat helpers ──────────────────────────────────────────────
@@ -671,15 +837,20 @@ function sendTyped() {
   var text  = input.value.trim();
   if (!text) return;
   input.value = '';
-  submitAnswer(text);
+  document.getElementById('langBadge').style.display = 'none';
+  if (_dynamicMode) {
+    sendDynamicAnswer(text);
+  } else {
+    submitStaticAnswer(text);
+  }
 }
 
-function submitAnswer(text) {
+// Static interview answer handler
+function submitStaticAnswer(text) {
   addUserBubble(text);
   answers.push({ question: QUESTIONS[currentQ].q, cat: QUESTIONS[currentQ].cat, text: text });
   currentQ++;
-  updateProgress();
-  document.getElementById('langBadge').style.display = 'none';
+  updateProgress(Math.round(currentQ / QUESTIONS.length * 100));
   if (currentQ < QUESTIONS.length) {
     setTimeout(function() {
       document.getElementById('questionCategory').textContent = QUESTIONS[currentQ].cat;
@@ -688,31 +859,53 @@ function submitAnswer(text) {
     }, 400);
   } else {
     setTimeout(function() {
-      addAIBubble('Thank you — I have everything I need. Let me now analyse your responses…', null);
-      setTimeout(function() { startAnalysis(); }, 1200);
+      addAIBubble('Thank you — I have everything I need. Analysing your responses now…', null);
+      setTimeout(function() { startAnalysis(false); }, 1200);
     }, 400);
   }
 }
 
-function skipQuestion() { submitAnswer('[Not answered]'); }
+function skipQuestion() {
+  if (_dynamicMode) {
+    sendDynamicAnswer('[Skipped]');
+  } else {
+    submitStaticAnswer('[Not answered]');
+  }
+}
 
-function updateProgress() {
-  var pct = (currentQ / QUESTIONS.length * 100).toFixed(0);
+function updateProgress(pct) {
+  if (pct === undefined) pct = _dynamicMode ? 50 : Math.round(currentQ / (QUESTIONS.length || 9) * 100);
   document.getElementById('progressFill').style.width = pct + '%';
-  document.getElementById('questionCounter').textContent = (currentQ + 1) + ' / ' + QUESTIONS.length;
+  if (!_dynamicMode) {
+    document.getElementById('questionCounter').textContent = (currentQ + 1) + ' / ' + (QUESTIONS.length || 9);
+  } else {
+    document.getElementById('questionCounter').textContent = currentQ + ' answered';
+  }
 }
 
 // ── Analysis ──────────────────────────────────────────────────
-async function startAnalysis() {
+// preComputed=true skips the rule-based engine (synthesis already set diagResult)
+async function startAnalysis(preComputed) {
   unlockSection(2);
   _p.Audit.log('analysis_start', _p.Session.id);
   var steps = ['astep1','astep2','astep3','astep4'];
-  for (var i = 0; i < steps.length; i++) {
-    await _p.sleep(900);
-    document.getElementById(steps[i]).innerHTML = document.getElementById(steps[i]).innerHTML.replace('⏳','✅');
-    if (i + 1 < steps.length) document.getElementById(steps[i+1]).style.opacity = '1';
+
+  if (preComputed && diagResult) {
+    // Fast-track: animate steps briefly then show result
+    for (var i = 0; i < steps.length; i++) {
+      await _p.sleep(520);
+      document.getElementById(steps[i]).innerHTML = document.getElementById(steps[i]).innerHTML.replace('⏳','✅');
+      if (i + 1 < steps.length) document.getElementById(steps[i+1]).style.opacity = '1';
+    }
+  } else {
+    for (var i = 0; i < steps.length; i++) {
+      await _p.sleep(900);
+      document.getElementById(steps[i]).innerHTML = document.getElementById(steps[i]).innerHTML.replace('⏳','✅');
+      if (i + 1 < steps.length) document.getElementById(steps[i+1]).style.opacity = '1';
+    }
+    diagResult = await _p.runDiagnosis(answers);
   }
-  diagResult = await _p.runDiagnosis(answers);
+
   _p.Audit.log('analysis_complete', _p.Session.id, { dx: diagResult.diagnoses[0].name });
   renderReview();
   document.getElementById('analysisPanel').style.display = 'none';

@@ -151,6 +151,23 @@
             <p>Session: <strong class="font-mono" id="consentId">PT-????</strong> · HIPAA &amp; GDPR compliant</p>
           </div>
 
+          <!-- API key for dynamic AI interview -->
+          <div id="apiKeySection" class="mb-16">
+            <div style="padding:14px 16px;border-radius:var(--r);background:var(--accent-bg);border:1px solid var(--accent-mid);margin-bottom:0">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                <span style="font-size:.875rem;font-weight:600;color:var(--accent-h)">🧠 AI-powered interview</span>
+                <span id="apiKeyStatus" class="badge badge-gray" style="font-size:.65rem"></span>
+              </div>
+              <p style="font-size:.78rem;color:var(--text-2);margin-bottom:10px">Enter your Anthropic API key to enable dynamic clinical reasoning — the AI adapts questions based on your responses in real time. Leave blank to use the standard questionnaire.</p>
+              <div style="display:flex;gap-8;gap:8px">
+                <input class="form-input font-mono" id="apiKeyInput" type="password" placeholder="sk-ant-api03-…"
+                  style="flex:1;font-size:.8rem" oninput="onApiKeyInput(this.value)" />
+                <button class="btn btn-ghost btn-sm" onclick="clearApiKey()" id="clearKeyBtn" style="display:none;color:var(--red)">Remove</button>
+              </div>
+              <p style="font-size:.7rem;color:var(--subtle);margin-top:6px">🔒 Key used only in your browser — never sent to Cue servers.</p>
+            </div>
+          </div>
+
           <button class="btn btn-primary btn-full" onclick="proceedFromConsent()">Start Pre-Consultation →</button>
         </div>
 
@@ -442,8 +459,8 @@
 .hr-vacc-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; }
 </style>
 
-<script src="app.js?v=9"></script>
-<script src="patient.js?v=9"></script>
-<script src="tracker.js?v=9"></script>
+<script src="app.js?v=10"></script>
+<script src="patient.js?v=10"></script>
+<script src="tracker.js?v=10"></script>
 </body>
 </html>

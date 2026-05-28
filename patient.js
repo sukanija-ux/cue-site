@@ -316,9 +316,156 @@ document.addEventListener('DOMContentLoaded', function () {
   if (!onboarded) {
     navTo('onboarding');
   } else {
+    seedDemoData(id);
     navTo('home');
   }
 });
+
+// ═══════════════════════════════════════════════════════════════
+// DEMO DATA SEED
+// ═══════════════════════════════════════════════════════════════
+function seedDemoData(ptId) {
+  var existing = getConsultations(ptId).filter(isSubmitted);
+  if (existing.length > 0) return; // already has real data — don't overwrite
+
+  var now  = Date.now();
+  var day  = 86400000;
+
+  var demos = [
+    // ── 1. ONGOING — Seasonal Rhinitis (confirmed + tracking, improving) ──
+    {
+      id: 'demo-001',
+      title: 'Sneezing & runny nose',
+      status: 'ongoing',
+      phase: 'tracking',
+      createdAt: new Date(now - 18 * day).toISOString(),
+      submittedAt: new Date(now - 17 * day).toISOString(),
+      trackingEnabled: true,
+      answers: [
+        { cat: 'Chief Complaint', text: 'Constant sneezing, itchy eyes and blocked nose for two weeks.' },
+        { cat: 'Duration', text: 'Started about 3 weeks ago, worsens outdoors.' },
+        { cat: 'Triggers', text: 'Pollen, grass, outdoor activities in the morning.' },
+        { cat: 'Associated symptoms', text: 'Itchy eyes, mild headache, fatigue.' },
+        { cat: 'Previous episodes', text: 'Yes, every spring for the last 4 years.' },
+        { cat: 'Medications tried', text: 'Cetirizine — partial relief.' },
+      ],
+      diagResult: {
+        diagnoses: [{
+          label: 'Seasonal Allergic Rhinitis',
+          name:  'Seasonal Allergic Rhinitis',
+          icd:   'J30.1',
+          confidence: 91,
+          symptoms: ['sneezing', 'rhinorrhoea', 'nasal congestion', 'itchy eyes', 'fatigue'],
+        }],
+      },
+      doctorReview: {
+        confirmed: true,
+        confirmedAt: new Date(now - 16 * day).toISOString(),
+        confirmedBy: 'DR-4821',
+        notes: 'Consistent with seasonal allergic rhinitis. Continue antihistamines, consider nasal corticosteroid spray if symptoms persist beyond 4 weeks. Follow-up in 3 weeks.',
+      },
+      checkins: [
+        { date: new Date(now - 14 * day).toISOString(), severity: 7, symptoms: ['sneezing', 'nasal congestion'], notes: 'Worse in the morning.' },
+        { date: new Date(now - 12 * day).toISOString(), severity: 6, symptoms: ['sneezing', 'itchy eyes'], notes: 'Slightly better after cetirizine.' },
+        { date: new Date(now - 10 * day).toISOString(), severity: 5, symptoms: ['runny nose', 'fatigue'], notes: '' },
+        { date: new Date(now -  8 * day).toISOString(), severity: 4, symptoms: ['mild sneezing'], notes: 'Feeling noticeably better.' },
+        { date: new Date(now -  6 * day).toISOString(), severity: 3, symptoms: ['occasional sneezing'], notes: 'Almost normal.' },
+        { date: new Date(now -  4 * day).toISOString(), severity: 2, symptoms: [], notes: 'Only sneezing outdoors now.' },
+      ],
+    },
+
+    // ── 2. PENDING REVIEW — Tension Headaches (submitted, AI ready, awaiting doctor) ──
+    {
+      id: 'demo-002',
+      title: 'Recurring headaches',
+      status: 'pending',
+      phase: 'doctor_review',
+      createdAt: new Date(now - 3 * day).toISOString(),
+      submittedAt: new Date(now - 2 * day).toISOString(),
+      trackingEnabled: false,
+      answers: [
+        { cat: 'Chief Complaint', text: 'Dull, pressing headache across the forehead and temples almost every afternoon.' },
+        { cat: 'Duration', text: 'Been happening daily for the past 10 days.' },
+        { cat: 'Pain character', text: 'Tight band-like pressure, not throbbing. Both sides of head.' },
+        { cat: 'Severity', text: 'About 5–6 out of 10 at peak.' },
+        { cat: 'Triggers', text: 'Long hours staring at screens, stress, skipping meals.' },
+        { cat: 'Relief', text: 'Paracetamol helps but wears off after 3 hours.' },
+        { cat: 'Associated symptoms', text: 'Mild neck stiffness, light sensitivity sometimes.' },
+      ],
+      diagResult: {
+        diagnoses: [
+          { label: 'Tension-Type Headache', name: 'Tension-Type Headache', icd: 'G44.2', confidence: 84, symptoms: ['headache', 'neck stiffness', 'photophobia'] },
+          { label: 'Cervicogenic Headache', name: 'Cervicogenic Headache', icd: 'G44.841', confidence: 11, symptoms: ['neck stiffness', 'unilateral headache'] },
+        ],
+      },
+      doctorReview: null,
+      checkins: [],
+    },
+
+    // ── 3. NEW — Lower Back Pain (just submitted today) ──
+    {
+      id: 'demo-003',
+      title: 'Lower back pain',
+      status: 'new',
+      phase: 'doctor_review',
+      createdAt: new Date(now - 6 * 3600000).toISOString(),
+      submittedAt: new Date(now - 5 * 3600000).toISOString(),
+      trackingEnabled: false,
+      answers: [
+        { cat: 'Chief Complaint', text: 'Sharp pain in lower back, worse when sitting for long periods.' },
+        { cat: 'Onset', text: 'Started suddenly 2 days ago after moving furniture.' },
+        { cat: 'Pain character', text: 'Sharp, localised to the left lumbar area. Radiates slightly down the left buttock.' },
+        { cat: 'Severity', text: '7 out of 10 when standing up from a chair.' },
+        { cat: 'Aggravating factors', text: 'Bending forward, prolonged sitting, getting in and out of bed.' },
+        { cat: 'Relieving factors', text: 'Lying flat with knees bent. Ibuprofen gives moderate relief.' },
+      ],
+      diagResult: {
+        diagnoses: [
+          { label: 'Acute Lumbar Strain', name: 'Acute Lumbar Strain', icd: 'M54.5', confidence: 78, symptoms: ['lower back pain', 'muscle spasm', 'limited range of motion'] },
+          { label: 'Lumbar Disc Herniation', name: 'Lumbar Disc Herniation', icd: 'M51.1', confidence: 17, symptoms: ['radicular pain', 'lower back pain'] },
+        ],
+      },
+      doctorReview: null,
+      checkins: [],
+    },
+
+    // ── 4. ARCHIVED — Common Cold (resolved, patient felt better) ──
+    {
+      id: 'demo-004',
+      title: 'Cold & sore throat',
+      status: 'archived',
+      phase: 'tracking',
+      createdAt: new Date(now - 35 * day).toISOString(),
+      submittedAt: new Date(now - 34 * day).toISOString(),
+      resolvedAt: new Date(now - 25 * day).toISOString(),
+      resolvedReason: 'Patient marked as feeling better',
+      trackingEnabled: true,
+      answers: [
+        { cat: 'Chief Complaint', text: 'Sore throat, blocked nose, mild fever, fatigue.' },
+        { cat: 'Duration', text: '3 days.' },
+        { cat: 'Fever', text: '37.8°C, low-grade.' },
+        { cat: 'Associated symptoms', text: 'Mild cough, loss of appetite.' },
+      ],
+      diagResult: {
+        diagnoses: [{ label: 'Viral Upper Respiratory Infection', name: 'Viral Upper Respiratory Infection', icd: 'J06.9', confidence: 95, symptoms: ['sore throat', 'rhinorrhoea', 'low-grade fever', 'fatigue'] }],
+      },
+      doctorReview: {
+        confirmed: true,
+        confirmedAt: new Date(now - 33 * day).toISOString(),
+        confirmedBy: 'DR-4821',
+        notes: 'Viral URTI — supportive care. Rest, fluids, paracetamol for fever. No antibiotics indicated.',
+      },
+      checkins: [
+        { date: new Date(now - 32 * day).toISOString(), severity: 6, symptoms: ['sore throat', 'fever'], notes: '' },
+        { date: new Date(now - 30 * day).toISOString(), severity: 5, symptoms: ['cough', 'fatigue'], notes: 'Fever gone.' },
+        { date: new Date(now - 28 * day).toISOString(), severity: 3, symptoms: ['mild cough'], notes: 'Much better.' },
+        { date: new Date(now - 26 * day).toISOString(), severity: 1, symptoms: [], notes: 'Nearly fully recovered.' },
+      ],
+    },
+  ];
+
+  saveConsultations(ptId, demos);
+}
 
 function onLangChange() {
   selectedLang = document.getElementById('langSelect').value;

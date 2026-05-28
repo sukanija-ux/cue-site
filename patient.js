@@ -1015,35 +1015,57 @@ function applySynthesis(jsonStr) {
 
 // ── Static fallback ───────────────────────────────────────────
 function buildTailoredQuestions(h) {
-  var fn = h.firstName||localStorage.getItem('cue_firstname')||'there';
-  var condNames = (h.chronicConditions||[]).map(function(c){return c.label;});
-  var medNames  = (h.currentMedications||[]).map(function(m){return m.name;});
-  var hasConds = condNames.length>0, hasMeds = medNames.length>0;
-  var rt = (h.recentTravels||[])[0];
-
-  var q7 = 'Is there anything that makes it better or worse?';
-  if (hasMeds && medNames.length===1) q7 = 'Have you tried ' + medNames[0] + ' for it — and did it help?';
-  else if (hasMeds) q7 = 'Have you tried any of your usual medications for it — did it help?';
-
-  var q8 = 'Any other conditions, recent illnesses, or medications I should know about?';
-  if (hasConds) q8 = 'Does this feel similar to your usual ' + condNames[0] + ', or is it a bit different this time?';
-  else if (rt)  q8 = 'You recently travelled to ' + rt.destination + ' — did the symptoms start around that time?';
-
-  var q9 = 'Last question — any chest pain, difficulty breathing, sudden weakness, or the worst headache of your life?';
-  if (rt && !hasConds) q9 = 'Since your trip to ' + rt.destination + ' — any fever, rash, or stomach symptoms?';
+  // These questions are deliberately general — we do NOT assume the current complaint
+  // is related to the patient's existing conditions, medications, or travel history.
+  // That connection is the doctor's job after reviewing the full picture.
+  var fn = h.firstName || localStorage.getItem('cue_firstname') || 'there';
 
   return [
-    { cat:'How are you today?',         q:'Hi '+fn+' 👋 I\'m here to take a quick history before your appointment. In your own words, what\'s been going on?', quickReplies:null },
-    { cat:'When did it start?',         q:'When did this start?', quickReplies:['Today','Yesterday','2–3 days ago','About a week ago','Longer'] },
-    { cat:'Where is it?',               q: hasConds&&/migrain|headache/i.test(condNames.join()) ? 'Same spot as your usual migraines, or somewhere different?' : 'Where exactly do you feel it?',
-      quickReplies: hasConds ? ['Same as usual','Somewhere different','Both'] : null },
-    { cat:'What does it feel like?',    q:'How would you describe the sensation — sharp, dull, throbbing, burning, cramping, or pressure?',
-      quickReplies:['Sharp / stabbing','Dull / aching','Throbbing / pulsing','Burning','Cramping','Pressure'] },
-    { cat:'How bad is it?',             q:'On a scale of 0–10, how would you rate it right now?', quickReplies:['1','2','3','4','5','6','7','8','9','10'] },
-    { cat:'Anything else going on?',    q:'Any other symptoms alongside this?', quickReplies:['No, just this','Fever / chills','Nausea / vomiting','Dizziness','Breathlessness','Fatigue'] },
-    { cat:'What helps or makes it worse?', q:q7, quickReplies: hasMeds ? ['Yes, helped a lot','Helped a little','No effect','Made it worse',"Haven't tried"] : ['Rest helps','Heat helps','Cold helps','Nothing helps','Not sure'] },
-    { cat:'Background',                 q:q8, quickReplies: hasConds ? ['Very similar','A bit different','Quite different'] : null },
-    { cat:'Safety check',               q:q9, quickReplies:['None of these','Yes — at least one'] },
+    {
+      cat: 'Chief complaint',
+      q: 'Hi ' + fn + ' 👋 I\'m here to take a quick history before your appointment. In your own words, what\'s been going on?',
+      quickReplies: null,
+    },
+    {
+      cat: 'Onset',
+      q: 'When did this start?',
+      quickReplies: ['Today', 'Yesterday', '2–3 days ago', 'About a week ago', 'Longer than a week'],
+    },
+    {
+      cat: 'Location',
+      q: 'Where exactly do you feel it — can you point to or describe the area?',
+      quickReplies: null,
+    },
+    {
+      cat: 'Character',
+      q: 'How would you describe it — sharp, dull, throbbing, burning, pressure, or something else?',
+      quickReplies: ['Sharp / stabbing', 'Dull / aching', 'Throbbing / pulsing', 'Burning', 'Cramping', 'Pressure / tightness'],
+    },
+    {
+      cat: 'Severity',
+      q: 'On a scale of 0 to 10, how bad is it right now — 0 being no discomfort, 10 the worst imaginable?',
+      quickReplies: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
+    },
+    {
+      cat: 'Associated symptoms',
+      q: 'Any other symptoms alongside this?',
+      quickReplies: ['No, just this', 'Fever / chills', 'Nausea / vomiting', 'Dizziness', 'Shortness of breath', 'Fatigue'],
+    },
+    {
+      cat: 'Timing',
+      q: 'Is it constant, or does it come and go?',
+      quickReplies: ['Constant', 'Comes and goes', 'Getting worse over time', 'Getting better', 'About the same throughout'],
+    },
+    {
+      cat: 'Modifying factors',
+      q: 'Is there anything that makes it better or worse — rest, movement, eating, posture, temperature?',
+      quickReplies: ['Rest helps', 'Movement makes it worse', 'Food makes a difference', 'Heat helps', 'Cold helps', 'Nothing helps'],
+    },
+    {
+      cat: 'Safety check',
+      q: 'Last one — any chest pain, difficulty breathing, sudden weakness or numbness, or a headache you\'d call the worst you\'ve ever had?',
+      quickReplies: ['None of these', 'Yes — at least one applies'],
+    },
   ];
 }
 

@@ -64,6 +64,19 @@ function overrideRealThread(ptId, threadId, diagName, notes) {
   return true;
 }
 
+function toggleDrMenu(e) {
+  if (e) e.stopPropagation();
+  var menu = document.getElementById('profileMenu');
+  if (menu) menu.classList.toggle('open');
+}
+document.addEventListener('click', function(e) {
+  var dd = document.getElementById('profileDd');
+  if (dd && !dd.contains(e.target)) {
+    var menu = document.getElementById('profileMenu');
+    if (menu) menu.classList.remove('open');
+  }
+});
+
 document.addEventListener('DOMContentLoaded', function() {
   _d.Session.init();
   renderPatientList();

@@ -279,10 +279,7 @@
 <nav class="nav">
   <div class="nav-inner">
     <a href="index.html" class="nav-logo"><div class="nav-logo-mark">C</div>Cue</a>
-    <div class="role-switch">
-      <button class="role-btn active" data-i18n="nav_patient">Patient</button>
-      <button class="role-btn" onclick="window.location='doctor.html'" data-i18n="nav_doctor">Doctor</button>
-    </div>
+    <div style="flex:1"></div>
     <div class="nav-right">
       <!-- Profile avatar + dropdown -->
       <div class="profile-dd" id="profileDd">
@@ -297,6 +294,13 @@
             <span>👤</span><span data-i18n="nav_my_profile">My Profile</span>
             <span id="consultBadge" style="margin-left:auto;font-size:.65rem;background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-mid);border-radius:var(--r-full);padding:1px 7px;font-weight:600;display:none">0</span>
           </button>
+          <div class="profile-menu-sep"></div>
+          <!-- Role switcher -->
+          <div class="profile-menu-label">Switch role</div>
+          <div style="display:flex;gap:4px;padding:2px 12px 8px">
+            <button class="role-btn active" style="flex:1;font-size:.78rem;padding:5px 0" data-i18n="nav_patient">Patient</button>
+            <button class="role-btn" style="flex:1;font-size:.78rem;padding:5px 0" onclick="window.location='doctor.html'" data-i18n="nav_doctor">Doctor</button>
+          </div>
           <div class="profile-menu-sep"></div>
           <div class="profile-menu-label" data-i18n="nav_language">Language</div>
           <select id="langSelect" onchange="onLangChange()" class="profile-menu-lang">
@@ -1068,7 +1072,7 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="app.js?v=20"></script>
-<script src="patient.js?v=20"></script>
+<script src="app.js?v=21"></script>
+<script src="patient.js?v=21"></script>
 </body>
 </html>

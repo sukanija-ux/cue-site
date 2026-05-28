@@ -12,13 +12,27 @@
 <nav class="nav">
   <div class="nav-inner">
     <a href="index.html" class="nav-logo"><div class="nav-logo-mark">C</div>Cue</a>
-    <div class="role-switch">
-      <button class="role-btn" onclick="window.location='patient.html'">Patient</button>
-      <button class="role-btn active">Doctor</button>
-    </div>
+    <div style="flex:1"></div>
     <div class="nav-right" style="display:flex;align-items:center;gap:12px">
-      <span class="nav-id"><span class="nav-id-dot"></span><span id="navId">DR-????</span></span>
-      <button onclick="window.CUE && window.CUE.Session.logout()" class="btn btn-ghost" style="font-size:.75rem;padding:4px 10px;color:var(--muted)">Sign out</button>
+      <!-- Doctor profile dropdown -->
+      <div class="profile-dd" id="profileDd">
+        <button class="profile-avatar" id="profileAvatarBtn" onclick="toggleDrMenu(event)" aria-label="Profile menu">DR</button>
+        <div class="profile-menu" id="profileMenu">
+          <div class="profile-menu-top">
+            <span class="nav-id"><span class="nav-id-dot"></span><span id="navId">DR-????</span></span>
+          </div>
+          <div class="profile-menu-sep"></div>
+          <div class="profile-menu-label">Switch role</div>
+          <div style="display:flex;gap:4px;padding:2px 12px 8px">
+            <button class="role-btn" style="flex:1;font-size:.78rem;padding:5px 0" onclick="window.location='patient.html'">Patient</button>
+            <button class="role-btn active" style="flex:1;font-size:.78rem;padding:5px 0">Doctor</button>
+          </div>
+          <div class="profile-menu-sep"></div>
+          <button class="profile-menu-item danger" onclick="window.CUE && window.CUE.Session.logout()">
+            <span>↪</span><span>Sign out</span>
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </nav>
@@ -246,7 +260,7 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="app.js?v=20"></script>
-<script src="doctor.js?v=20"></script>
+<script src="app.js?v=21"></script>
+<script src="doctor.js?v=21"></script>
 </body>
 </html>

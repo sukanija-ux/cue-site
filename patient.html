@@ -280,59 +280,45 @@
   <div class="nav-inner">
     <a href="index.html" class="nav-logo"><div class="nav-logo-mark">C</div>Cue</a>
     <div class="role-switch">
-      <button class="role-btn active">Patient</button>
-      <button class="role-btn" onclick="window.location='doctor.html'">Doctor</button>
+      <button class="role-btn active" data-i18n="nav_patient">Patient</button>
+      <button class="role-btn" onclick="window.location='doctor.html'" data-i18n="nav_doctor">Doctor</button>
     </div>
-    <div class="nav-right" style="display:flex;align-items:center;gap:12px">
-      <span style="font-size:.8rem;color:var(--muted)" class="nav-user-name"></span>
-      <span class="nav-id"><span class="nav-id-dot"></span><span id="navId">PT-????</span></span>
-      <button onclick="window.CUE && window.CUE.Session.logout()" class="btn btn-ghost" style="font-size:.75rem;padding:4px 10px;color:var(--muted)">Sign out</button>
+    <div class="nav-right">
+      <!-- Profile avatar + dropdown -->
+      <div class="profile-dd" id="profileDd">
+        <button class="profile-avatar" id="profileAvatarBtn" onclick="toggleProfileMenu(event)" aria-label="Profile menu">
+          <span id="profileInitials">P</span>
+        </button>
+        <div class="profile-menu" id="profileMenu">
+          <div class="profile-menu-top">
+            <span class="nav-id"><span class="nav-id-dot"></span><span id="navId">PT-????</span></span>
+          </div>
+          <button class="profile-menu-item" onclick="navTo('profile');closeProfileMenu()">
+            <span>👤</span><span data-i18n="nav_my_profile">My Profile</span>
+            <span id="consultBadge" style="margin-left:auto;font-size:.65rem;background:var(--accent-bg);color:var(--accent);border:1px solid var(--accent-mid);border-radius:var(--r-full);padding:1px 7px;font-weight:600;display:none">0</span>
+          </button>
+          <div class="profile-menu-sep"></div>
+          <div class="profile-menu-label" data-i18n="nav_language">Language</div>
+          <select id="langSelect" onchange="onLangChange()" class="profile-menu-lang">
+            <option value="en">🇬🇧 English</option>
+            <option value="es">🇪🇸 Español</option>
+            <option value="fr">🇫🇷 Français</option>
+            <option value="de">🇩🇪 Deutsch</option>
+            <option value="hi">🇮🇳 हिन्दी</option>
+            <option value="ar">🇸🇦 العربية</option>
+            <option value="ta">🇮🇳 தமிழ்</option>
+          </select>
+          <div class="profile-menu-sep"></div>
+          <button class="profile-menu-item danger" onclick="window.CUE && window.CUE.Session.logout()">
+            <span>↪</span><span data-i18n="nav_sign_out">Sign out</span>
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </nav>
 
 <div class="app-shell">
-
-  <!-- Sidebar -->
-  <aside class="sidebar">
-    <div style="padding:6px 8px 14px;border-bottom:1px solid var(--border);margin-bottom:4px">
-      <div class="patient-greeting" style="font-size:.9375rem;font-weight:600;color:var(--text);line-height:1.3"></div>
-      <div style="display:flex;align-items:center;gap:5px;margin-top:5px">
-        <span style="width:5px;height:5px;border-radius:50%;background:var(--green);flex-shrink:0"></span>
-        <span style="font-size:.725rem;font-family:var(--mono);color:var(--muted)" id="sidebarId">PT-????</span>
-      </div>
-    </div>
-
-    <div class="sidebar-section">My Health</div>
-    <button class="step-pill active" id="pill-home" onclick="navTo('home')">
-      <span class="step-num">🏠</span><span>My Health</span>
-      <span id="consultBadge" style="margin-left:auto;font-size:.65rem;background:var(--accent-bg);color:var(--accent-h);border:1px solid var(--accent-mid);border-radius:var(--r-full);padding:1px 7px;font-weight:600;display:none">0</span>
-    </button>
-    <button class="step-pill" id="pill-profile" onclick="navTo('profile')">
-      <span class="step-num">👤</span><span>My Profile</span>
-    </button>
-
-    <div style="flex:1"></div>
-
-    <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:8px">
-      <div class="sidebar-section" style="padding-top:0;padding-bottom:6px">Language</div>
-      <select id="langSelect" onchange="onLangChange()"
-        style="width:100%;padding:7px 10px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface);font-size:.8125rem;color:var(--text);font-family:var(--font);outline:none;cursor:pointer">
-        <option value="auto">Auto-detect</option>
-        <option value="en">English</option>
-        <option value="es">Español</option>
-        <option value="fr">Français</option>
-        <option value="de">Deutsch</option>
-        <option value="hi">Hindi</option>
-        <option value="ar">Arabic</option>
-        <option value="ta">Tamil</option>
-      </select>
-    </div>
-    <div style="padding-top:12px;border-top:1px solid var(--border);margin-top:10px">
-      <p style="font-size:.7rem;color:var(--subtle);line-height:1.55">🔒 Identified by patient ID only. No personal data stored on servers.</p>
-    </div>
-  </aside>
-
   <main class="main">
     <div class="main-inner">
 
@@ -600,18 +586,18 @@
 
       <div class="flex items-center justify-between mb-6">
         <div>
-          <h2 id="homeGreeting">My Health</h2>
-          <p class="text-sm mt-4" style="color:var(--muted)">Each health concern is its own thread, tracked from first symptom to recovery.</p>
+          <h2 id="homeGreeting" data-i18n="home_title">My Health</h2>
+          <p class="text-sm mt-4" data-i18n="home_sub" style="color:var(--muted)">Each health concern is its own thread, tracked from first symptom to recovery.</p>
         </div>
-        <button class="btn btn-primary" onclick="createNewConsultation()" style="gap:6px;white-space:nowrap;flex-shrink:0">+ New</button>
+        <button class="btn btn-primary" onclick="createNewConsultation()" data-i18n="btn_new" style="gap:6px;white-space:nowrap;flex-shrink:0">+ New</button>
       </div>
 
       <div class="flex items-center justify-between mb-16">
         <div class="filter-tabs" id="filterTabs">
-          <button class="filter-tab active" onclick="filterSickness('all',this)">All</button>
-          <button class="filter-tab" onclick="filterSickness('new',this)">New</button>
-          <button class="filter-tab" onclick="filterSickness('ongoing',this)">Ongoing</button>
-          <button class="filter-tab" onclick="filterSickness('archived',this)">Archived</button>
+          <button class="filter-tab active" onclick="filterSickness('all',this)" data-i18n="filter_all">All</button>
+          <button class="filter-tab" onclick="filterSickness('new',this)" data-i18n="filter_new">New</button>
+          <button class="filter-tab" onclick="filterSickness('ongoing',this)" data-i18n="filter_ongoing">Ongoing</button>
+          <button class="filter-tab" onclick="filterSickness('archived',this)" data-i18n="filter_archived">Archived</button>
         </div>
         <div class="view-toggle">
           <button class="view-toggle-btn active" id="viewGrid" onclick="setView('grid')" title="Grid view">⊞</button>
@@ -629,7 +615,7 @@
 
       <!-- Thread header -->
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid var(--border)">
-        <button onclick="backToHome()" class="btn btn-ghost btn-sm" style="flex-shrink:0">← Back</button>
+        <button onclick="backToHome()" class="btn btn-ghost btn-sm" data-i18n="back" style="flex-shrink:0">← Back</button>
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <span id="threadTitle" style="font-size:1rem;font-weight:600;color:var(--text)">Consultation</span>
@@ -651,8 +637,8 @@
     <div id="sec-profile" style="display:none;max-width:660px;margin:0 auto">
       <div class="flex items-center justify-between mb-20">
         <div>
-          <h2>My Profile</h2>
-          <p class="text-sm mt-4" style="color:var(--muted)">Your complete health record — visible only to you and your physician.</p>
+          <h2 data-i18n="profile_title">My Profile</h2>
+          <p class="text-sm mt-4" data-i18n="profile_sub" style="color:var(--muted)">Your complete health record — visible only to you and your physician.</p>
         </div>
         <div id="hrBtnArea"></div>
       </div>
@@ -670,8 +656,8 @@
 <!-- Consent template -->
 <template id="tpl-consent">
   <div style="max-width:540px">
-    <h3 style="margin-bottom:6px">Before we begin</h3>
-    <p class="text-sm mb-20" style="color:var(--muted)">Cue's AI will take a structured history so your doctor has a clear picture before your appointment.</p>
+    <h3 style="margin-bottom:6px" data-i18n="before_begin">Before we begin</h3>
+    <p class="text-sm mb-20" data-i18n="before_begin_sub" style="color:var(--muted)">Cue's AI will take a structured history so your doctor has a clear picture before your appointment.</p>
     <div class="card mb-12">
       <div class="stack-12">
         <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
@@ -696,7 +682,7 @@
         <p style="font-size:.7rem;color:var(--subtle);margin-top:6px">Key used only in your browser — never sent to Cue servers.</p>
       </div>
     </div>
-    <button class="btn btn-primary" style="width:100%" onclick="proceedFromConsent(this)">Start interview →</button>
+    <button class="btn btn-primary" style="width:100%" onclick="proceedFromConsent(this)" data-i18n="start_interview">Start interview →</button>
   </div>
 </template>
 
@@ -768,7 +754,7 @@
       <input type="checkbox" class="enable-tracking" style="accent-color:var(--accent)">
       <span class="text-sm" style="color:var(--text-2)">Opt in to every-other-day symptom check-ins</span>
     </label>
-    <button class="btn btn-primary" style="width:100%" onclick="submitConsultation()">Send to my doctor →</button>
+    <button class="btn btn-primary" style="width:100%" onclick="submitConsultation()" data-i18n="send_doctor">Send to my doctor →</button>
   </div>
 </template>
 
@@ -777,8 +763,8 @@
   <div>
     <div id="dr-awaiting" class="card" style="text-align:center;padding:36px 20px">
       <div style="font-size:2rem;margin-bottom:10px">⏳</div>
-      <h4 style="margin-bottom:6px">Awaiting doctor review</h4>
-      <p class="text-sm" style="color:var(--muted)">Your pre-consultation has been sent. Your physician will review the AI summary and confirm the diagnosis.</p>
+      <h4 style="margin-bottom:6px" data-i18n="awaiting_review">Awaiting doctor review</h4>
+      <p class="text-sm" data-i18n="awaiting_sub" style="color:var(--muted)">Your pre-consultation has been sent. Your physician will review the AI summary and confirm the diagnosis.</p>
       <button class="btn btn-ghost btn-sm mt-16" onclick="simulateDoctorConfirm()" style="color:var(--subtle);font-size:.72rem">Demo: Simulate doctor confirmation →</button>
     </div>
     <div id="dr-confirmed" style="display:none">
@@ -814,15 +800,15 @@
     <div class="checkin-methods mb-20">
       <button class="checkin-method-btn" onclick="openLogModal()" title="Log symptoms on the platform">
         <span class="checkin-method-icon">💬</span>
-        <span class="checkin-method-label">Log on platform</span>
+        <span class="checkin-method-label" data-i18n="log_platform">Log on platform</span>
       </button>
       <button class="checkin-method-btn call-btn" onclick="openOutboundCallModal()" title="Have the bot call you now">
         <span class="checkin-method-icon">📞</span>
-        <span class="checkin-method-label">Call me now</span>
+        <span class="checkin-method-label" data-i18n="call_me_now">Call me now</span>
       </button>
       <button class="checkin-method-btn" onclick="showInboundCallInfo()" title="Call the bot yourself">
         <span class="checkin-method-icon">☎️</span>
-        <span class="checkin-method-label">Call the bot</span>
+        <span class="checkin-method-label" data-i18n="call_bot">Call the bot</span>
       </button>
     </div>
 
@@ -879,16 +865,16 @@
     <div class="stat-row mb-16" style="grid-template-columns:repeat(3,1fr)">
       <div class="stat-card">
         <div class="stat-val track-days">0</div>
-        <div class="stat-label">Days tracked</div>
+        <div class="stat-label" data-i18n="days_tracked">Days tracked</div>
       </div>
       <div class="stat-card">
         <div class="stat-val track-avg-sev">—</div>
-        <div class="stat-label">Avg severity</div>
+        <div class="stat-label" data-i18n="avg_severity">Avg severity</div>
         <div class="stat-sub neutral track-trend">No data yet</div>
       </div>
       <div class="stat-card">
         <div class="stat-val" style="font-size:1.1rem;color:var(--amber)" id="trakNext">—</div>
-        <div class="stat-label">Next check-in</div>
+        <div class="stat-label" data-i18n="next_checkin">Next check-in</div>
       </div>
     </div>
 
@@ -1082,7 +1068,7 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="app.js?v=19"></script>
-<script src="patient.js?v=19"></script>
+<script src="app.js?v=20"></script>
+<script src="patient.js?v=20"></script>
 </body>
 </html>

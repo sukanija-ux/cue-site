@@ -6,6 +6,246 @@
 
 const _p = window.CUE;
 
+// ═══════════════════════════════════════════════════════════════
+// TRANSLATIONS
+// ═══════════════════════════════════════════════════════════════
+const TRANSLATIONS = {
+  en: {
+    nav_patient:'Patient', nav_doctor:'Doctor',
+    nav_my_profile:'My Profile', nav_language:'Language', nav_sign_out:'Sign out',
+    home_title:'My Health',
+    home_sub:'Each health concern is its own thread, tracked from first symptom to recovery.',
+    btn_new:'+ New',
+    filter_all:'All', filter_new:'New', filter_ongoing:'Ongoing', filter_archived:'Archived',
+    profile_title:'My Profile',
+    profile_sub:'Your complete health record — visible only to you and your physician.',
+    stage_preconsult:'Pre-Consultation', stage_doctor:'Doctor Review',
+    stage_treatment:'Treatment Plan', stage_tracking:'Symptom Tracking',
+    back:'← Back', send_doctor:'Send to my doctor →',
+    no_consults:'No consultations yet',
+    no_consults_sub:"Start a new consultation to document a health concern. It will appear here once you've sent it to your doctor.",
+    btn_new_consult:'+ New Consultation',
+    no_match:'No items match this filter', no_match_sub:'Try selecting a different filter.',
+    awaiting_review:'Awaiting doctor review',
+    awaiting_sub:'Your pre-consultation has been sent. Your physician will review the AI summary and confirm the diagnosis.',
+    before_begin:'Before we begin',
+    before_begin_sub:"Cue's AI will take a structured history so your doctor has a clear picture before your appointment.",
+    start_interview:'Start interview →',
+    log_platform:'Log on platform', call_me_now:'Call me now', call_bot:'Call the bot',
+    days_tracked:'Days tracked', avg_severity:'Avg severity', next_checkin:'Next check-in',
+    entries:'Entries', severity_over_time:'Severity over time',
+    draft_unfinished:'You have an unfinished interview', draft_tap:'— tap to continue',
+    status_new:'New', status_pending:'Pending review', status_ongoing:'Ongoing', status_archived:'Archived',
+    awaiting_ai:'AI summary ready — awaiting doctor', sent_awaiting:'Sent to doctor — awaiting review',
+    greeting_hello:'Hello,',
+  },
+  es: {
+    nav_patient:'Paciente', nav_doctor:'Médico',
+    nav_my_profile:'Mi Perfil', nav_language:'Idioma', nav_sign_out:'Cerrar sesión',
+    home_title:'Mi Salud',
+    home_sub:'Cada problema de salud es su propio hilo, desde el primer síntoma hasta la recuperación.',
+    btn_new:'+ Nueva',
+    filter_all:'Todos', filter_new:'Nuevo', filter_ongoing:'En curso', filter_archived:'Archivado',
+    profile_title:'Mi Perfil',
+    profile_sub:'Tu historial médico completo — solo visible para ti y tu médico.',
+    stage_preconsult:'Pre-consulta', stage_doctor:'Revisión médica',
+    stage_treatment:'Plan de tratamiento', stage_tracking:'Seguimiento de síntomas',
+    back:'← Volver', send_doctor:'Enviar a mi médico →',
+    no_consults:'Sin consultas todavía',
+    no_consults_sub:'Inicia una nueva consulta para documentar un problema de salud.',
+    btn_new_consult:'+ Nueva consulta',
+    no_match:'Ningún resultado coincide', no_match_sub:'Prueba con un filtro diferente.',
+    awaiting_review:'Esperando revisión médica',
+    awaiting_sub:'Tu pre-consulta ha sido enviada. Tu médico revisará el resumen y confirmará el diagnóstico.',
+    before_begin:'Antes de comenzar',
+    before_begin_sub:'La IA de Cue tomará un historial estructurado para que tu médico tenga una visión clara.',
+    start_interview:'Iniciar entrevista →',
+    log_platform:'Registrar aquí', call_me_now:'Llamarme ahora', call_bot:'Llamar al bot',
+    days_tracked:'Días registrados', avg_severity:'Gravedad media', next_checkin:'Próximo seguimiento',
+    entries:'Entradas', severity_over_time:'Gravedad con el tiempo',
+    draft_unfinished:'Tienes una entrevista sin terminar', draft_tap:'— toca para continuar',
+    status_new:'Nuevo', status_pending:'En revisión', status_ongoing:'En curso', status_archived:'Archivado',
+    awaiting_ai:'Resumen de IA listo — esperando médico', sent_awaiting:'Enviado al médico — esperando revisión',
+    greeting_hello:'Hola,',
+  },
+  fr: {
+    nav_patient:'Patient', nav_doctor:'Médecin',
+    nav_my_profile:'Mon Profil', nav_language:'Langue', nav_sign_out:'Déconnexion',
+    home_title:'Ma Santé',
+    home_sub:'Chaque problème de santé a son propre fil, du premier symptôme à la guérison.',
+    btn_new:'+ Nouveau',
+    filter_all:'Tous', filter_new:'Nouveau', filter_ongoing:'En cours', filter_archived:'Archivé',
+    profile_title:'Mon Profil',
+    profile_sub:'Votre dossier médical complet — visible uniquement par vous et votre médecin.',
+    stage_preconsult:'Pré-consultation', stage_doctor:'Revue médicale',
+    stage_treatment:'Plan de traitement', stage_tracking:'Suivi des symptômes',
+    back:'← Retour', send_doctor:'Envoyer à mon médecin →',
+    no_consults:'Aucune consultation',
+    no_consults_sub:'Commencez une nouvelle consultation pour documenter un problème de santé.',
+    btn_new_consult:'+ Nouvelle consultation',
+    no_match:'Aucun résultat', no_match_sub:'Essayez un autre filtre.',
+    awaiting_review:'En attente de revue médicale',
+    awaiting_sub:'Votre pré-consultation a été envoyée. Votre médecin examinera le résumé IA.',
+    before_begin:'Avant de commencer',
+    before_begin_sub:"L'IA de Cue prendra un historique structuré pour que votre médecin ait une vue claire.",
+    start_interview:"Commencer l'entretien →",
+    log_platform:'Enregistrer ici', call_me_now:"M'appeler", call_bot:'Appeler le bot',
+    days_tracked:'Jours suivis', avg_severity:'Gravité moyenne', next_checkin:'Prochain suivi',
+    entries:'Entrées', severity_over_time:'Gravité dans le temps',
+    draft_unfinished:'Vous avez un entretien inachevé', draft_tap:'— appuyez pour continuer',
+    status_new:'Nouveau', status_pending:'En attente', status_ongoing:'En cours', status_archived:'Archivé',
+    awaiting_ai:'Résumé IA prêt — en attente du médecin', sent_awaiting:'Envoyé au médecin — en attente',
+    greeting_hello:'Bonjour,',
+  },
+  de: {
+    nav_patient:'Patient', nav_doctor:'Arzt',
+    nav_my_profile:'Mein Profil', nav_language:'Sprache', nav_sign_out:'Abmelden',
+    home_title:'Meine Gesundheit',
+    home_sub:'Jedes Gesundheitsproblem hat seinen eigenen Thread, verfolgt vom ersten Symptom bis zur Genesung.',
+    btn_new:'+ Neu',
+    filter_all:'Alle', filter_new:'Neu', filter_ongoing:'Laufend', filter_archived:'Archiviert',
+    profile_title:'Mein Profil',
+    profile_sub:'Ihre vollständige Krankenakte — nur für Sie und Ihren Arzt sichtbar.',
+    stage_preconsult:'Vorberatung', stage_doctor:'Ärztliche Überprüfung',
+    stage_treatment:'Behandlungsplan', stage_tracking:'Symptomverfolgung',
+    back:'← Zurück', send_doctor:'An meinen Arzt senden →',
+    no_consults:'Noch keine Beratungen',
+    no_consults_sub:'Starten Sie eine neue Beratung, um ein Gesundheitsproblem zu dokumentieren.',
+    btn_new_consult:'+ Neue Beratung',
+    no_match:'Keine Ergebnisse', no_match_sub:'Versuchen Sie einen anderen Filter.',
+    awaiting_review:'Wartet auf ärztliche Überprüfung',
+    awaiting_sub:'Ihre Vorberatung wurde gesendet. Ihr Arzt wird die KI-Zusammenfassung prüfen.',
+    before_begin:'Bevor wir beginnen',
+    before_begin_sub:'Cues KI nimmt eine strukturierte Anamnese auf.',
+    start_interview:'Interview starten →',
+    log_platform:'Hier erfassen', call_me_now:'Jetzt anrufen', call_bot:'Bot anrufen',
+    days_tracked:'Tage verfolgt', avg_severity:'Ø Schweregrad', next_checkin:'Nächste Kontrolle',
+    entries:'Einträge', severity_over_time:'Schweregrad im Verlauf',
+    draft_unfinished:'Sie haben ein unvollständiges Interview', draft_tap:'— tippen zum Fortfahren',
+    status_new:'Neu', status_pending:'In Prüfung', status_ongoing:'Laufend', status_archived:'Archiviert',
+    awaiting_ai:'KI-Zusammenfassung bereit — wartet auf Arzt', sent_awaiting:'An Arzt gesendet — wartet auf Prüfung',
+    greeting_hello:'Hallo,',
+  },
+  hi: {
+    nav_patient:'मरीज़', nav_doctor:'डॉक्टर',
+    nav_my_profile:'मेरी प्रोफ़ाइल', nav_language:'भाषा', nav_sign_out:'साइन आउट',
+    home_title:'मेरा स्वास्थ्य',
+    home_sub:'प्रत्येक स्वास्थ्य समस्या अपने आप में एक थ्रेड है, पहले लक्षण से ठीक होने तक।',
+    btn_new:'+ नया',
+    filter_all:'सभी', filter_new:'नया', filter_ongoing:'जारी', filter_archived:'संग्रहीत',
+    profile_title:'मेरी प्रोफ़ाइल',
+    profile_sub:'आपका पूरा स्वास्थ्य रिकॉर्ड — केवल आप और आपके डॉक्टर को दिखाई देता है।',
+    stage_preconsult:'पूर्व-परामर्श', stage_doctor:'डॉक्टर समीक्षा',
+    stage_treatment:'उपचार योजना', stage_tracking:'लक्षण ट्रैकिंग',
+    back:'← वापस', send_doctor:'डॉक्टर को भेजें →',
+    no_consults:'अभी कोई परामर्श नहीं',
+    no_consults_sub:'एक नया परामर्श शुरू करें।',
+    btn_new_consult:'+ नया परामर्श',
+    no_match:'कोई परिणाम नहीं', no_match_sub:'अलग फ़िल्टर आज़माएं।',
+    awaiting_review:'डॉक्टर की समीक्षा का इंतज़ार',
+    awaiting_sub:'आपका प्री-कंसल्टेशन भेज दिया गया है।',
+    before_begin:'शुरू करने से पहले',
+    before_begin_sub:'Cue की AI एक संरचित इतिहास लेगी ताकि आपके डॉक्टर तैयार रहें।',
+    start_interview:'साक्षात्कार शुरू करें →',
+    log_platform:'यहाँ लॉग करें', call_me_now:'अभी कॉल करें', call_bot:'बॉट को कॉल करें',
+    days_tracked:'दिन ट्रैक', avg_severity:'औसत गंभीरता', next_checkin:'अगली जांच',
+    entries:'प्रविष्टियाँ', severity_over_time:'समय के साथ गंभीरता',
+    draft_unfinished:'एक अधूरा साक्षात्कार है', draft_tap:'— जारी रखने के लिए टैप करें',
+    status_new:'नया', status_pending:'समीक्षा में', status_ongoing:'जारी', status_archived:'संग्रहीत',
+    awaiting_ai:'AI सारांश तैयार — डॉक्टर का इंतज़ार', sent_awaiting:'डॉक्टर को भेजा — समीक्षा का इंतज़ार',
+    greeting_hello:'नमस्ते,',
+  },
+  ar: {
+    nav_patient:'مريض', nav_doctor:'طبيب',
+    nav_my_profile:'ملفي الشخصي', nav_language:'اللغة', nav_sign_out:'تسجيل الخروج',
+    home_title:'صحتي',
+    home_sub:'كل مشكلة صحية لها خيطها الخاص، من أول أعراض حتى الشفاء.',
+    btn_new:'+ جديد',
+    filter_all:'الكل', filter_new:'جديد', filter_ongoing:'جارٍ', filter_archived:'مؤرشف',
+    profile_title:'ملفي الشخصي',
+    profile_sub:'سجلك الصحي الكامل — مرئي لك ولطبيبك فقط.',
+    stage_preconsult:'الاستشارة المسبقة', stage_doctor:'مراجعة الطبيب',
+    stage_treatment:'خطة العلاج', stage_tracking:'تتبع الأعراض',
+    back:'← رجوع', send_doctor:'إرسال إلى طبيبي →',
+    no_consults:'لا توجد استشارات بعد',
+    no_consults_sub:'ابدأ استشارة جديدة لتوثيق مشكلة صحية.',
+    btn_new_consult:'+ استشارة جديدة',
+    no_match:'لا توجد نتائج', no_match_sub:'جرّب تصفية مختلفة.',
+    awaiting_review:'في انتظار مراجعة الطبيب',
+    awaiting_sub:'تم إرسال استشارتك المسبقة. سيراجع طبيبك ملخص الذكاء الاصطناعي.',
+    before_begin:'قبل البدء',
+    before_begin_sub:'سيأخذ ذكاء Cue الاصطناعي تاريخاً طبياً منظماً ليستعد طبيبك.',
+    start_interview:'بدء المقابلة →',
+    log_platform:'تسجيل هنا', call_me_now:'اتصل بي الآن', call_bot:'الاتصال بالروبوت',
+    days_tracked:'أيام التتبع', avg_severity:'متوسط الشدة', next_checkin:'الفحص التالي',
+    entries:'المدخلات', severity_over_time:'الشدة عبر الزمن',
+    draft_unfinished:'لديك مقابلة غير مكتملة', draft_tap:'— اضغط للمتابعة',
+    status_new:'جديد', status_pending:'قيد المراجعة', status_ongoing:'جارٍ', status_archived:'مؤرشف',
+    awaiting_ai:'ملخص الذكاء الاصطناعي جاهز', sent_awaiting:'أُرسل إلى الطبيب — بانتظار المراجعة',
+    greeting_hello:'مرحباً،',
+  },
+  ta: {
+    nav_patient:'நோயாளி', nav_doctor:'மருத்துவர்',
+    nav_my_profile:'என் சுயவிவரம்', nav_language:'மொழி', nav_sign_out:'வெளியேறு',
+    home_title:'என் உடல்நலம்',
+    home_sub:'ஒவ்வொரு உடல்நல கவலையும் அதன் சொந்த நூலாக இருக்கும்.',
+    btn_new:'+ புதியது',
+    filter_all:'அனைத்தும்', filter_new:'புதியது', filter_ongoing:'நடந்து வருகிறது', filter_archived:'காப்பகம்',
+    profile_title:'என் சுயவிவரம்',
+    profile_sub:'உங்கள் முழுமையான சுகாதார பதிவு — உங்களுக்கும் உங்கள் மருத்துவருக்கும் மட்டுமே.',
+    stage_preconsult:'முன் ஆலோசனை', stage_doctor:'மருத்துவர் மதிப்பாய்வு',
+    stage_treatment:'சிகிச்சை திட்டம்', stage_tracking:'அறிகுறி கண்காணிப்பு',
+    back:'← பின்செல்', send_doctor:'என் மருத்துவருக்கு அனுப்பு →',
+    no_consults:'இன்னும் ஆலோசனை இல்லை',
+    no_consults_sub:'ஒரு புதிய ஆலோசனையை தொடங்குங்கள்.',
+    btn_new_consult:'+ புதிய ஆலோசனை',
+    no_match:'பொருத்தமில்லை', no_match_sub:'வேறு வடிகட்டியை முயற்சிக்கவும்.',
+    awaiting_review:'மருத்துவர் மதிப்பாய்வை எதிர்பார்க்கிறது',
+    awaiting_sub:'உங்கள் முன் ஆலோசனை அனுப்பப்பட்டது.',
+    before_begin:'தொடங்குவதற்கு முன்',
+    before_begin_sub:'Cue AI ஒரு கட்டமைக்கப்பட்ட வரலாற்றை எடுக்கும்.',
+    start_interview:'நேர்காணல் தொடங்கு →',
+    log_platform:'இங்கே பதிவு செய்', call_me_now:'என்னை இப்போது அழை', call_bot:'பாட்டை அழை',
+    days_tracked:'கண்காணிக்கப்பட்ட நாட்கள்', avg_severity:'சராசரி தீவிரம்', next_checkin:'அடுத்த சரிபார்ப்பு',
+    entries:'உள்ளீடுகள்', severity_over_time:'காலப்போக்கில் தீவிரம்',
+    draft_unfinished:'முடிக்கப்படாத நேர்காணல்', draft_tap:'— தொடர தட்டவும்',
+    status_new:'புதியது', status_pending:'மதிப்பாய்வில்', status_ongoing:'நடந்து வருகிறது', status_archived:'காப்பகத்தில்',
+    awaiting_ai:'AI சுருக்கம் தயார் — மருத்துவர் உறுதிப்படுத்தல் காத்திருக்கிறது', sent_awaiting:'மருத்துவருக்கு அனுப்பப்பட்டது',
+    greeting_hello:'வணக்கம்,',
+  },
+};
+
+function t(key) {
+  var lang = selectedLang === 'auto' ? 'en' : selectedLang;
+  var strings = TRANSLATIONS[lang] || TRANSLATIONS.en;
+  return strings[key] !== undefined ? strings[key] : (TRANSLATIONS.en[key] || key);
+}
+
+function applyTranslations() {
+  var lang = selectedLang === 'auto' ? 'en' : selectedLang;
+  // Walk static DOM
+  document.querySelectorAll('[data-i18n]').forEach(function(el) {
+    var key = el.getAttribute('data-i18n');
+    var val = t(key);
+    if (val) el.textContent = val;
+  });
+  // Walk template contents
+  document.querySelectorAll('template').forEach(function(tpl) {
+    tpl.content.querySelectorAll('[data-i18n]').forEach(function(el) {
+      var key = el.getAttribute('data-i18n');
+      var val = t(key);
+      if (val) el.textContent = val;
+    });
+  });
+  // RTL for Arabic
+  document.documentElement.dir  = lang === 'ar' ? 'rtl' : 'ltr';
+  document.documentElement.lang = lang;
+  // Re-render current section
+  if (document.getElementById('sec-home')    && document.getElementById('sec-home').style.display    !== 'none') renderHome();
+  if (document.getElementById('sec-profile') && document.getElementById('sec-profile').style.display !== 'none') renderProfile();
+  if (document.getElementById('sec-thread')  && document.getElementById('sec-thread').style.display  !== 'none' && _activeThread) buildThreadStages();
+}
+
 // ── Global UI state ───────────────────────────────────────────
 let selectedLang     = 'auto';
 let isRecording      = false;
@@ -52,8 +292,24 @@ document.addEventListener('DOMContentLoaded', function () {
   _p.Session.init();
   var id = _p.Session.id;
   var fn = _p.Session.firstName;
-  document.querySelectorAll('#sidebarId').forEach(function (el) { el.textContent = id; });
+
+  // Nav patient ID
+  document.querySelectorAll('#navId').forEach(function(el) { el.textContent = id; });
   document.querySelectorAll('#logPatientId').forEach(function (el) { el.textContent = id; });
+
+  // Profile avatar initials
+  var initials = fn ? fn.charAt(0).toUpperCase() : (id ? id.charAt(0).toUpperCase() : 'P');
+  var avatarEl = document.getElementById('profileInitials');
+  if (avatarEl) avatarEl.textContent = initials;
+
+  // Restore saved language
+  var savedLang = localStorage.getItem('cue_lang');
+  if (savedLang && TRANSLATIONS[savedLang]) {
+    selectedLang = savedLang;
+    var sel = document.getElementById('langSelect');
+    if (sel) sel.value = savedLang;
+  }
+  applyTranslations();
 
   // Decide first screen
   var onboarded = localStorage.getItem('cue_onboarded');
@@ -64,7 +320,26 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 });
 
-function onLangChange() { selectedLang = document.getElementById('langSelect').value; }
+function onLangChange() {
+  selectedLang = document.getElementById('langSelect').value;
+  localStorage.setItem('cue_lang', selectedLang);
+  applyTranslations();
+}
+
+// ── Profile dropdown ──────────────────────────────────────────
+function toggleProfileMenu(e) {
+  if (e) e.stopPropagation();
+  var menu = document.getElementById('profileMenu');
+  if (menu) menu.classList.toggle('open');
+}
+function closeProfileMenu() {
+  var menu = document.getElementById('profileMenu');
+  if (menu) menu.classList.remove('open');
+}
+document.addEventListener('click', function(e) {
+  var dd = document.getElementById('profileDd');
+  if (dd && !dd.contains(e.target)) closeProfileMenu();
+});
 
 // ═══════════════════════════════════════════════════════════════
 // NAVIGATION
@@ -77,13 +352,9 @@ function navTo(screen) {
   var el = document.getElementById('sec-' + screen);
   if (el) el.style.display = '';
 
-  // Sidebar pills
-  document.querySelectorAll('.step-pill').forEach(function (p) { p.classList.remove('active'); });
-  if (screen === 'home')    { var p = document.getElementById('pill-home');    if (p) p.classList.add('active'); }
-  if (screen === 'profile') { var p = document.getElementById('pill-profile'); if (p) p.classList.add('active'); }
-
   if (screen === 'home')    renderHome();
   if (screen === 'profile') renderProfile();
+  applyTranslations();
 
   window.scrollTo(0, 0);
 }
@@ -296,7 +567,7 @@ function finishOnboarding() {
 function renderHome() {
   var fn = _p.Session.firstName;
   var greeting = document.getElementById('homeGreeting');
-  if (greeting) greeting.textContent = fn ? 'Hello, ' + fn : 'My Health';
+  if (greeting) greeting.textContent = fn ? t('greeting_hello') + ' ' + fn : t('home_title');
 
   var allList      = getConsultations(_p.Session.id);
   // Submitted = sent to doctor; these appear as cards
@@ -328,8 +599,8 @@ function renderDraftBanner(draft) {
   banner.innerHTML =
     '<span style="font-size:1.2rem">📝</span>' +
     '<div style="flex:1;min-width:0">' +
-      '<div style="font-size:.875rem;font-weight:600;color:var(--accent)">You have an unfinished interview</div>' +
-      '<div style="font-size:.78rem;color:var(--text-2);margin-top:2px">' + escapeHtml(draft.title || 'New consultation') + ' — tap to continue</div>' +
+      '<div style="font-size:.875rem;font-weight:600;color:var(--accent)">' + t('draft_unfinished') + '</div>' +
+      '<div style="font-size:.78rem;color:var(--text-2);margin-top:2px">' + escapeHtml(draft.title || 'New consultation') + ' ' + t('draft_tap') + '</div>' +
     '</div>' +
     '<button onclick="event.stopPropagation();discardDraft(\'' + draft.id + '\')" style="background:none;border:none;cursor:pointer;font-size:.75rem;color:var(--muted);padding:4px 6px;border-radius:4px;flex-shrink:0" title="Discard">✕ Discard</button>' +
     '<span style="color:var(--accent);font-size:1rem;flex-shrink:0">›</span>';
@@ -358,9 +629,9 @@ function renderSicknessCards(list, filter, view) {
     container.innerHTML =
       '<div class="empty-state">' +
         '<div style="font-size:3rem;margin-bottom:14px">' + (list.length === 0 ? '💊' : '🔍') + '</div>' +
-        '<h3 style="margin-bottom:8px">' + (list.length === 0 ? 'No consultations yet' : 'No items match this filter') + '</h3>' +
-        '<p class="text-sm mb-20" style="color:var(--muted)">' + (list.length === 0 ? 'Start a new consultation to document a health concern. It will appear here once you\'ve sent it to your doctor.' : 'Try selecting a different filter.') + '</p>' +
-        (list.length === 0 ? '<button class="btn btn-primary" onclick="createNewConsultation()">+ New Consultation</button>' : '') +
+        '<h3 style="margin-bottom:8px">' + (list.length === 0 ? t('no_consults') : t('no_match')) + '</h3>' +
+        '<p class="text-sm mb-20" style="color:var(--muted)">' + (list.length === 0 ? t('no_consults_sub') : t('no_match_sub')) + '</p>' +
+        (list.length === 0 ? '<button class="btn btn-primary" onclick="createNewConsultation()">' + t('btn_new_consult') + '</button>' : '') +
       '</div>';
     return;
   }
@@ -372,7 +643,7 @@ function renderSicknessCards(list, filter, view) {
 }
 
 function buildSicknessCard(t) {
-  var statusLabel = { new:'New', pending:'Pending review', ongoing:'Ongoing', archived:'Archived' }[t.status] || 'New';
+  var statusLabel = { new:t('status_new'), pending:t('status_pending'), ongoing:t('status_ongoing'), archived:t('status_archived') }[t.status] || t('status_new');
   var statusCls   = { new:'badge-teal', pending:'badge-amber', ongoing:'badge-green', archived:'badge-gray' }[t.status] || 'badge-gray';
   var icon        = { new:'🩺', pending:'🔍', ongoing:'📈', archived:'✅' }[t.status] || '🩺';
   var date        = t.createdAt ? new Date(t.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '';
@@ -384,8 +655,8 @@ function buildSicknessCard(t) {
     : t.diagResult && t.doctorReview && t.doctorReview.confirmed
       ? t.diagResult.diagnoses[0].name
       : t.diagResult
-        ? 'AI summary ready — awaiting doctor'
-        : 'Sent to doctor — awaiting review';
+        ? t('awaiting_ai')
+        : t('sent_awaiting');
 
   // "Feeling better" button shown on new, pending, and ongoing threads
   var canResolve = t.status === 'new' || t.status === 'pending' || t.status === 'ongoing';
@@ -573,7 +844,7 @@ function buildThreadStages() {
   appendStage(t, {
     id: 'stage-preconsult',
     dot: s1done ? 'done' : s1active ? 'active' : 'locked',
-    label: 'Pre-Consultation',
+    label: t('stage_preconsult'),
     labelClass: '',
     date: s1done ? fmtDate(th.createdAt) : '',
     body: buildPreconsultBody(phase, s1done),
@@ -586,7 +857,7 @@ function buildThreadStages() {
   appendStage(t, {
     id: 'stage-doctor',
     dot: s2done ? 'done' : s2active ? 'pending' : 'locked',
-    label: 'Doctor Review',
+    label: t('stage_doctor'),
     labelClass: s2locked ? 'locked' : '',
     date: s2done ? fmtDate(th.doctorReview.confirmedAt) : '',
     body: buildDoctorBody(s2locked, s2active, s2done),
@@ -599,7 +870,7 @@ function buildThreadStages() {
   appendStage(t, {
     id: 'stage-treatment',
     dot: s3done ? 'done' : s3active ? 'active' : 'locked',
-    label: 'Treatment Plan',
+    label: t('stage_treatment'),
     labelClass: s3locked ? 'locked' : '',
     date: '',
     body: buildTreatmentBody(s3locked, confirmed),
@@ -611,7 +882,7 @@ function buildThreadStages() {
   appendStage(t, {
     id: 'stage-tracking',
     dot: s4active ? 'active' : s4locked ? 'locked' : 'done',
-    label: 'Symptom Tracking',
+    label: t('stage_tracking'),
     labelClass: s4locked ? 'locked' : '',
     date: '',
     body: buildTrackingBody(s4locked),

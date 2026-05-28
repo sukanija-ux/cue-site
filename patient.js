@@ -488,12 +488,6 @@ function saveActiveThread() {
 }
 
 function createNewConsultation() {
-  // If a draft (unsubmitted interview) already exists, resume it rather than create a second
-  var existing = getConsultations(_p.Session.id).find(function(t) { return !isSubmitted(t); });
-  if (existing) {
-    openThread(existing.id);
-    return;
-  }
   _activeThread = {
     id: generateThreadId(), title: 'New Consultation',
     status: 'new', phase: 'consent', createdAt: new Date().toISOString(),

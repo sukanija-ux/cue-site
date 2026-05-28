@@ -2,6 +2,8 @@
    Cue — Doctor Dashboard
    Patient list | Queue | Calendar | Alerts | Detail panel
    ============================================================ */
+function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
 
 const _d = window.CUE;
 
@@ -38,11 +40,14 @@ function confirmRealThread(ptId, threadId) {
   if (!store[ptId] || !store[ptId].consultations) return false;
   var t = store[ptId].consultations.find(function(x){ return x.id === threadId; });
   if (!t) return false;
+  var drId = localStorage.getItem('cue_dr_id') || 'DR-' + Math.random().toString(36).slice(2,6).toUpperCase();
+  localStorage.setItem('cue_dr_id', drId);
   t.doctorReview = t.doctorReview || {};
   t.doctorReview.confirmed    = true;
   t.doctorReview.confirmedAt  = new Date().toISOString();
-  t.doctorReview.confirmedBy  = _d.Session.id;
+  t.doctorReview.confirmedBy  = drId;
   t.status = 'ongoing';
+  t.phase  = 'tracking';
   try { localStorage.setItem('cue_store', JSON.stringify(store)); } catch(e) {}
   return true;
 }
@@ -53,13 +58,16 @@ function overrideRealThread(ptId, threadId, diagName, notes) {
   if (!store[ptId] || !store[ptId].consultations) return false;
   var t = store[ptId].consultations.find(function(x){ return x.id === threadId; });
   if (!t) return false;
+  var drId2 = localStorage.getItem('cue_dr_id') || 'DR-' + Math.random().toString(36).slice(2,6).toUpperCase();
+  localStorage.setItem('cue_dr_id', drId2);
   t.doctorReview = t.doctorReview || {};
   t.doctorReview.confirmed    = true;
   t.doctorReview.confirmedAt  = new Date().toISOString();
-  t.doctorReview.confirmedBy  = _d.Session.id;
+  t.doctorReview.confirmedBy  = drId2;
   t.doctorReview.overriddenDx = diagName;
   t.doctorReview.notes        = notes;
   t.status = 'ongoing';
+  t.phase  = 'tracking';
   try { localStorage.setItem('cue_store', JSON.stringify(store)); } catch(e) {}
   return true;
 }
@@ -78,6 +86,10 @@ document.addEventListener('click', function(e) {
 });
 
 document.addEventListener('DOMContentLoaded', function() {
+  // Assign/restore a persistent doctor ID separate from patient session
+  var drId = localStorage.getItem('cue_dr_id');
+  if (!drId) { drId = 'DR-' + Math.random().toString(36).slice(2,6).toUpperCase(); localStorage.setItem('cue_dr_id', drId); }
+  document.querySelectorAll('#navId').forEach(function(el){ el.textContent = drId; });
   _d.Session.init();
   renderPatientList();
   renderQueue();
@@ -291,7 +303,7 @@ function renderQueue(filter) {
     var t         = r.thread;
     var confirmed = t.doctorReview && t.doctorReview.confirmed;
     var dx        = t.diagResult && t.diagResult.diagnoses && t.diagResult.diagnoses[0];
-    var dxName    = dx ? dx.label : 'Awaiting AI analysis';
+    var dxName    = dx ? (dx.name || dx.label || 'Unknown') : 'Awaiting AI analysis';
     var dxConf    = dx ? (dx.confidence || 75) : null;
     var submitted = new Date(t.submittedAt).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
     var borderColor = confirmed ? 'var(--accent)' : 'var(--amber)';
@@ -529,7 +541,7 @@ function openRealConfirmModal(ptId, threadId) {
 
   var confirmed = t.doctorReview && t.doctorReview.confirmed;
   var dx  = t.diagResult && t.diagResult.diagnoses && t.diagResult.diagnoses[0];
-  var dxName  = dx ? dx.label : 'AI analysis pending';
+  var dxName  = dx ? (dx.name || dx.label || 'Unknown') : 'AI analysis pending';
   var dxConf  = dx ? (dx.confidence || 75) : null;
   var answers = (t.answers || []).slice(0, 8);
   var checkins = t.checkins || [];

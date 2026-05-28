@@ -215,7 +215,7 @@ const TRANSLATIONS = {
   },
 };
 
-function t(key) {
+function tr(key) {
   var lang = selectedLang === 'auto' ? 'en' : selectedLang;
   var strings = TRANSLATIONS[lang] || TRANSLATIONS.en;
   return strings[key] !== undefined ? strings[key] : (TRANSLATIONS.en[key] || key);
@@ -226,14 +226,14 @@ function applyTranslations() {
   // Walk static DOM
   document.querySelectorAll('[data-i18n]').forEach(function(el) {
     var key = el.getAttribute('data-i18n');
-    var val = t(key);
+    var val = tr(key);
     if (val) el.textContent = val;
   });
   // Walk template contents
   document.querySelectorAll('template').forEach(function(tpl) {
     tpl.content.querySelectorAll('[data-i18n]').forEach(function(el) {
       var key = el.getAttribute('data-i18n');
-      var val = t(key);
+      var val = tr(key);
       if (val) el.textContent = val;
     });
   });
@@ -676,6 +676,7 @@ function renderObTravels() {
 
 function skipOnboarding() {
   localStorage.setItem('cue_onboarded', 'true');
+  seedDemoData(_p.Session.id);
   navTo('home');
 }
 
@@ -704,6 +705,7 @@ function finishOnboarding() {
 
   _p.persistHealthEdit(ptId, h);
   localStorage.setItem('cue_onboarded', 'true');
+  seedDemoData(ptId);
   navTo('home');
   showToast('✓ Profile saved');
 }
@@ -714,7 +716,7 @@ function finishOnboarding() {
 function renderHome() {
   var fn = _p.Session.firstName;
   var greeting = document.getElementById('homeGreeting');
-  if (greeting) greeting.textContent = fn ? t('greeting_hello') + ' ' + fn : t('home_title');
+  if (greeting) greeting.textContent = fn ? tr('greeting_hello') + ' ' + fn : tr('home_title');
 
   var allList      = getConsultations(_p.Session.id);
   // Submitted = sent to doctor; these appear as cards
@@ -746,8 +748,8 @@ function renderDraftBanner(draft) {
   banner.innerHTML =
     '<span style="font-size:1.2rem">📝</span>' +
     '<div style="flex:1;min-width:0">' +
-      '<div style="font-size:.875rem;font-weight:600;color:var(--accent)">' + t('draft_unfinished') + '</div>' +
-      '<div style="font-size:.78rem;color:var(--text-2);margin-top:2px">' + escapeHtml(draft.title || 'New consultation') + ' ' + t('draft_tap') + '</div>' +
+      '<div style="font-size:.875rem;font-weight:600;color:var(--accent)">' + tr('draft_unfinished') + '</div>' +
+      '<div style="font-size:.78rem;color:var(--text-2);margin-top:2px">' + escapeHtml(draft.title || 'New consultation') + ' ' + tr('draft_tap') + '</div>' +
     '</div>' +
     '<button onclick="event.stopPropagation();discardDraft(\'' + draft.id + '\')" style="background:none;border:none;cursor:pointer;font-size:.75rem;color:var(--muted);padding:4px 6px;border-radius:4px;flex-shrink:0" title="Discard">✕ Discard</button>' +
     '<span style="color:var(--accent);font-size:1rem;flex-shrink:0">›</span>';
@@ -770,45 +772,45 @@ function renderSicknessCards(list, filter, view) {
 
   var filtered = filter === 'all'
     ? list
-    : list.filter(function(t) { return t.status === filter || (filter === 'ongoing' && t.status === 'pending'); });
+    : list.filter(function(th) { return th.status === filter || (filter === 'ongoing' && th.status === 'pending'); });
 
   if (filtered.length === 0) {
     container.innerHTML =
       '<div class="empty-state">' +
         '<div style="font-size:3rem;margin-bottom:14px">' + (list.length === 0 ? '💊' : '🔍') + '</div>' +
-        '<h3 style="margin-bottom:8px">' + (list.length === 0 ? t('no_consults') : t('no_match')) + '</h3>' +
-        '<p class="text-sm mb-20" style="color:var(--muted)">' + (list.length === 0 ? t('no_consults_sub') : t('no_match_sub')) + '</p>' +
-        (list.length === 0 ? '<button class="btn btn-primary" onclick="createNewConsultation()">' + t('btn_new_consult') + '</button>' : '') +
+        '<h3 style="margin-bottom:8px">' + (list.length === 0 ? tr('no_consults') : tr('no_match')) + '</h3>' +
+        '<p class="text-sm mb-20" style="color:var(--muted)">' + (list.length === 0 ? tr('no_consults_sub') : tr('no_match_sub')) + '</p>' +
+        (list.length === 0 ? '<button class="btn btn-primary" onclick="createNewConsultation()">' + tr('btn_new_consult') + '</button>' : '') +
       '</div>';
     return;
   }
 
   var wrapClass = view === 'list' ? 'sickness-card-list' : 'sickness-grid';
-  container.innerHTML = '<div class="' + wrapClass + '">' + filtered.map(function(t) {
-    return buildSicknessCard(t);
+  container.innerHTML = '<div class="' + wrapClass + '">' + filtered.map(function(th) {
+    return buildSicknessCard(th);
   }).join('') + '</div>';
 }
 
-function buildSicknessCard(t) {
-  var statusLabel = { new:t('status_new'), pending:t('status_pending'), ongoing:t('status_ongoing'), archived:t('status_archived') }[t.status] || t('status_new');
-  var statusCls   = { new:'badge-teal', pending:'badge-amber', ongoing:'badge-green', archived:'badge-gray' }[t.status] || 'badge-gray';
-  var icon        = { new:'🩺', pending:'🔍', ongoing:'📈', archived:'✅' }[t.status] || '🩺';
-  var date        = t.createdAt ? new Date(t.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '';
-  var checkins    = (t.checkins || []).length;
-  var lastSev     = checkins ? t.checkins[t.checkins.length - 1].severity : null;
+function buildSicknessCard(th) {
+  var statusLabel = { new:tr('status_new'), pending:tr('status_pending'), ongoing:tr('status_ongoing'), archived:tr('status_archived') }[th.status] || tr('status_new');
+  var statusCls   = { new:'badge-teal', pending:'badge-amber', ongoing:'badge-green', archived:'badge-gray' }[th.status] || 'badge-gray';
+  var icon        = { new:'🩺', pending:'🔍', ongoing:'📈', archived:'✅' }[th.status] || '🩺';
+  var date        = th.createdAt ? new Date(th.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '';
+  var checkins    = (th.checkins || []).length;
+  var lastSev     = checkins ? th.checkins[th.checkins.length - 1].severity : null;
   var sevColor    = lastSev !== null ? (lastSev >= 7 ? '#EF4444' : lastSev >= 4 ? '#F59E0B' : '#10B981') : 'var(--border-2)';
-  var subtitle    = t.status === 'archived' && t.resolvedReason
-    ? t.resolvedReason
-    : t.diagResult && t.doctorReview && t.doctorReview.confirmed
-      ? t.diagResult.diagnoses[0].name
-      : t.diagResult
-        ? t('awaiting_ai')
-        : t('sent_awaiting');
+  var subtitle    = th.status === 'archived' && th.resolvedReason
+    ? th.resolvedReason
+    : th.diagResult && th.doctorReview && th.doctorReview.confirmed
+      ? th.diagResult.diagnoses[0].name
+      : th.diagResult
+        ? tr('awaiting_ai')
+        : tr('sent_awaiting');
 
   // "Feeling better" button shown on new, pending, and ongoing threads
-  var canResolve = t.status === 'new' || t.status === 'pending' || t.status === 'ongoing';
+  var canResolve = th.status === 'new' || th.status === 'pending' || th.status === 'ongoing';
   var resolveBtn = canResolve
-    ? '<button onclick="event.stopPropagation();markHealthy(\'' + t.id + '\')" ' +
+    ? '<button onclick="event.stopPropagation();markHealthy(\'' + th.id + '\')" ' +
         'style="display:flex;align-items:center;gap:4px;background:var(--green-bg);border:1px solid var(--green-border);' +
         'color:var(--green);border-radius:var(--r-full);padding:3px 10px;font-size:.72rem;font-weight:600;' +
         'cursor:pointer;font-family:var(--font);white-space:nowrap;transition:all .12s;" ' +
@@ -816,11 +818,11 @@ function buildSicknessCard(t) {
         'title="Mark as resolved — feeling better">✓ Feeling better</button>'
     : '';
 
-  return '<div class="sickness-card status-' + t.status + '" onclick="openThread(\'' + t.id + '\')">' +
+  return '<div class="sickness-card status-' + th.status + '" onclick="openThread(\'' + th.id + '\')">' +
     '<div class="flex items-center justify-between mb-8">' +
       '<div class="flex items-center gap-8" style="min-width:0">' +
         '<span style="font-size:1.3rem;flex-shrink:0">' + icon + '</span>' +
-        '<span style="font-size:.875rem;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHtml(t.title || 'Consultation') + '</span>' +
+        '<span style="font-size:.875rem;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHtml(th.title || 'Consultation') + '</span>' +
       '</div>' +
       '<span class="badge ' + statusCls + '" style="flex-shrink:0;margin-left:8px">' + statusLabel + '</span>' +
     '</div>' +
@@ -991,7 +993,7 @@ function buildThreadStages() {
   appendStage(t, {
     id: 'stage-preconsult',
     dot: s1done ? 'done' : s1active ? 'active' : 'locked',
-    label: t('stage_preconsult'),
+    label: tr('stage_preconsult'),
     labelClass: '',
     date: s1done ? fmtDate(th.createdAt) : '',
     body: buildPreconsultBody(phase, s1done),
@@ -1004,7 +1006,7 @@ function buildThreadStages() {
   appendStage(t, {
     id: 'stage-doctor',
     dot: s2done ? 'done' : s2active ? 'pending' : 'locked',
-    label: t('stage_doctor'),
+    label: tr('stage_doctor'),
     labelClass: s2locked ? 'locked' : '',
     date: s2done ? fmtDate(th.doctorReview.confirmedAt) : '',
     body: buildDoctorBody(s2locked, s2active, s2done),
@@ -1017,7 +1019,7 @@ function buildThreadStages() {
   appendStage(t, {
     id: 'stage-treatment',
     dot: s3done ? 'done' : s3active ? 'active' : 'locked',
-    label: t('stage_treatment'),
+    label: tr('stage_treatment'),
     labelClass: s3locked ? 'locked' : '',
     date: '',
     body: buildTreatmentBody(s3locked, confirmed),
@@ -1029,12 +1031,13 @@ function buildThreadStages() {
   appendStage(t, {
     id: 'stage-tracking',
     dot: s4active ? 'active' : s4locked ? 'locked' : 'done',
-    label: t('stage_tracking'),
+    label: tr('stage_tracking'),
     labelClass: s4locked ? 'locked' : '',
     date: '',
     body: buildTrackingBody(s4locked),
     last: true,
   });
+  if (phase === 'summary') setTimeout(renderSummaryContent, 50);
 }
 
 function appendStage(container, opts) {
@@ -1061,6 +1064,14 @@ function fmtDate(iso) {
 
 // ── Stage body builders ───────────────────────────────────────
 function buildPreconsultBody(phase, done) {
+  // 'summary' phase: show tpl-summary (diagnosis + Send to Doctor)
+  if (phase === 'summary') {
+    var tplS = document.getElementById('tpl-summary');
+    var cloneS = tplS ? tplS.content.cloneNode(true) : null;
+    var divS = document.createElement('div');
+    if (cloneS) divS.appendChild(cloneS);
+    return divS.innerHTML;
+  }
   if (done) {
     var t = _activeThread;
     var summary = t.diagResult

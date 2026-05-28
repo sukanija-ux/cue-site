@@ -548,9 +548,16 @@ function renderThreadView() {
 
   var actionsEl = document.getElementById('threadActions');
   if (actionsEl) {
-    actionsEl.innerHTML = t.status !== 'archived'
-      ? '<button class="btn btn-ghost btn-sm" onclick="archiveThread()" style="color:var(--muted)">Archive</button>'
-      : '<button class="btn btn-ghost btn-sm" onclick="unarchiveThread()">Reopen</button>';
+    if (t.status === 'archived') {
+      actionsEl.innerHTML = '<button class="btn btn-ghost btn-sm" onclick="unarchiveThread()">Reopen</button>';
+    } else {
+      actionsEl.innerHTML =
+        '<button onclick="markHealthyFromThread()" ' +
+          'style="display:flex;align-items:center;gap:5px;background:none;border:1.5px solid #BBF7D0;' +
+          'color:#15803D;border-radius:var(--r-full);padding:5px 12px;font-size:.78rem;font-weight:600;' +
+          'cursor:pointer;font-family:var(--font);white-space:nowrap;transition:background .12s;" ' +
+          'onmouseover="this.style.background=\'#F0FDF4\'" onmouseout="this.style.background=\'none\'">✓ Feeling better</button>';
+    }
   }
 
   buildThreadStages();
@@ -867,14 +874,22 @@ function renderChart() {
   });
 }
 
-function archiveThread() {
+function markHealthyFromThread() {
   if (!_activeThread) return;
-  _activeThread.status = 'archived'; saveActiveThread();
-  renderThreadView(); showToast('Archived');
+  _activeThread.status          = 'archived';
+  _activeThread.resolvedAt      = new Date().toISOString();
+  _activeThread.resolvedReason  = 'Patient marked as feeling better';
+  saveActiveThread();
+  _p.Audit.log('thread_resolved_by_patient', _p.Session.id, { id: _activeThread.id });
+  renderThreadView();
+  showToast('✓ Glad you\'re feeling better!');
 }
 function unarchiveThread() {
   if (!_activeThread) return;
-  _activeThread.status = _activeThread.diagResult ? 'ongoing' : 'new'; saveActiveThread();
+  _activeThread.status = _activeThread.diagResult ? 'ongoing' : 'new';
+  delete _activeThread.resolvedAt;
+  delete _activeThread.resolvedReason;
+  saveActiveThread();
   renderThreadView(); showToast('Reopened');
 }
 

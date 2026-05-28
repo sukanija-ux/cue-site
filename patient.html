@@ -5,6 +5,203 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Patient — Cue</title>
   <link rel="stylesheet" href="styles.css" />
+  <style>
+  /* ── Sickness cards ───────────────────────────────────────── */
+  .sickness-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 12px;
+  }
+  .sickness-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--r);
+    padding: 16px 18px;
+    cursor: pointer;
+    transition: border-color .15s, box-shadow .15s, transform .1s;
+    position: relative;
+    overflow: hidden;
+  }
+  .sickness-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; bottom: 0;
+    width: 3px;
+    border-radius: var(--r) 0 0 var(--r);
+  }
+  .sickness-card.status-new::before    { background: var(--accent); }
+  .sickness-card.status-ongoing::before{ background: var(--green); }
+  .sickness-card.status-pending::before{ background: var(--amber); }
+  .sickness-card.status-archived::before{ background: var(--border-2); }
+  .sickness-card:hover {
+    border-color: var(--accent-mid);
+    box-shadow: 0 4px 14px rgba(0,0,0,.07);
+    transform: translateY(-1px);
+  }
+  .sickness-card-list {
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .sickness-card-list .sickness-card {
+    padding: 14px 18px;
+  }
+  .view-toggle { display: flex; gap: 0; border: 1.5px solid var(--border); border-radius: var(--r); overflow: hidden; }
+  .view-toggle-btn {
+    background: var(--surface); border: none; padding: 5px 10px; cursor: pointer;
+    font-size: .85rem; color: var(--muted); transition: background .12s;
+    border-right: 1px solid var(--border);
+  }
+  .view-toggle-btn:last-child { border-right: none; }
+  .view-toggle-btn.active { background: var(--accent-bg); color: var(--accent-h); }
+
+  /* ── Thread timeline ──────────────────────────────────────── */
+  .thread-stages { display: flex; flex-direction: column; gap: 0; }
+  .stage-wrap {
+    position: relative;
+    padding-left: 40px;
+    padding-bottom: 28px;
+  }
+  .stage-wrap:last-child { padding-bottom: 0; }
+  .stage-wrap::before {
+    content: '';
+    position: absolute; top: 28px; left: 13px; bottom: 0;
+    width: 2px; background: var(--border);
+  }
+  .stage-wrap:last-child::before { display: none; }
+  .stage-dot {
+    position: absolute; left: 6px; top: 6px;
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 2px solid var(--border);
+    background: var(--surface);
+    display: flex; align-items: center; justify-content: center;
+    font-size: .55rem;
+    z-index: 1;
+  }
+  .stage-dot.done    { background: var(--green); border-color: var(--green); color: white; }
+  .stage-dot.active  { background: var(--accent); border-color: var(--accent); color: white; }
+  .stage-dot.pending { background: var(--amber); border-color: var(--amber); color: white; }
+  .stage-dot.locked  { background: var(--surface-2); border-color: var(--border); }
+  .stage-header {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 0;
+    padding: 4px 0 8px;
+  }
+  .stage-label { font-size: .875rem; font-weight: 600; color: var(--text); }
+  .stage-label.locked { color: var(--muted); }
+  .stage-date { font-size: .72rem; color: var(--subtle); margin-left: auto; }
+  .stage-body { }
+  .stage-collapsed {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--r); padding: 10px 14px;
+    font-size: .82rem; color: var(--text-2);
+    cursor: pointer; transition: border-color .12s;
+  }
+  .stage-collapsed:hover { border-color: var(--accent-mid); }
+  .stage-locked-body {
+    background: var(--surface-2); border: 1px dashed var(--border);
+    border-radius: var(--r); padding: 12px 14px;
+    font-size: .82rem; color: var(--muted); text-align: center;
+  }
+
+  /* ── Onboarding ───────────────────────────────────────────── */
+  .onboard-step { display: none; }
+  .onboard-step.active { display: block; }
+  .onboard-progress-track {
+    height: 4px; background: var(--border); border-radius: 4px; margin-bottom: 28px;
+  }
+  .onboard-progress-fill {
+    height: 100%; background: var(--accent); border-radius: 4px;
+    transition: width .4s ease;
+  }
+  .survey-group { margin-bottom: 20px; }
+  .survey-group:last-child { margin-bottom: 0; }
+  .fh-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: var(--r); margin-bottom: 8px;
+  }
+  .fh-row .relation { min-width: 80px; font-size: .8rem; font-weight: 600; color: var(--text-2); }
+  .check-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px;
+  }
+  .check-item {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+    background: var(--surface-2); border: 1.5px solid var(--border); border-radius: var(--r);
+    cursor: pointer; transition: border-color .12s, background .12s; font-size: .82rem;
+  }
+  .check-item:hover { border-color: var(--accent-mid); background: var(--accent-bg); }
+  .check-item.checked { border-color: var(--accent); background: var(--accent-bg); }
+  .check-item input { accent-color: var(--accent); }
+
+  /* ── Health record ────────────────────────────────────────── */
+  .hr-section { padding: 16px 0; border-bottom: 1px solid var(--border); }
+  .hr-section:last-child { border-bottom: none; padding-bottom: 0; }
+  .hr-section-label {
+    font-size: .6875rem; font-weight: 600; color: var(--subtle);
+    text-transform: uppercase; letter-spacing: .07em; margin-bottom: 10px;
+  }
+  .hr-field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .hr-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .hr-chip-item {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px; background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--r-full); font-size: .8125rem; color: var(--text-2);
+  }
+  .hr-chip-item.danger  { background: #FEF2F2; border-color: #FECACA; color: #991B1B; }
+  .hr-chip-item.accent  { background: var(--accent-bg); border-color: var(--accent-mid); color: var(--accent-h); }
+  .hr-chip-item.warning { background: #FFFBEB; border-color: #FDE68A; color: #92400E; }
+  .hr-remove { background: none; border: none; cursor: pointer; color: var(--muted); font-size: .9rem; padding: 0; }
+  .hr-remove:hover { color: var(--red); }
+  .hr-add-row { display: flex; gap: 6px; margin-top: 8px; }
+  .hr-add-row .form-input { flex: 1; height: 32px; font-size: .8125rem; }
+  .hr-add-row .btn { height: 32px; font-size: .78rem; padding: 0 12px; }
+  .hr-structured-item {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+    padding: 9px 12px; background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--r); margin-bottom: 6px;
+  }
+  .hr-add-block {
+    margin-top: 10px; padding: 12px; background: var(--surface-2);
+    border: 1px dashed var(--border-2); border-radius: var(--r);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .hr-add-block-label { font-size: .71rem; font-weight: 600; color: var(--subtle); text-transform: uppercase; letter-spacing: .06em; }
+  .hr-travel-card {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--r); margin-bottom: 6px;
+  }
+
+  /* ── Quick replies ────────────────────────────────────────── */
+  .quick-replies { display: flex; flex-wrap: wrap; gap: 7px; padding: 10px 0 4px 46px; }
+  .quick-reply-chip {
+    background: var(--surface); border: 1.5px solid var(--accent-mid);
+    color: var(--accent-h); font-size: .8rem; padding: 6px 14px;
+    border-radius: var(--r-full); cursor: pointer; font-family: var(--font);
+    transition: all .12s; white-space: nowrap; line-height: 1;
+  }
+  .quick-reply-chip:hover { background: var(--accent-bg); border-color: var(--accent); transform: translateY(-1px); }
+  @keyframes bubbleIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .chat-row { animation: bubbleIn .22s ease forwards; }
+  .empty-state {
+    text-align: center; padding: 52px 24px;
+    background: var(--surface-2); border: 1.5px dashed var(--border-2);
+    border-radius: var(--r);
+  }
+  .filter-tabs { display: flex; gap: 0; }
+  .filter-tab {
+    padding: 6px 16px; font-size: .8rem; font-weight: 500; border: none;
+    background: none; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent;
+    transition: color .12s, border-color .12s;
+  }
+  .filter-tab.active { color: var(--accent-h); border-bottom-color: var(--accent); }
+  .severity-bar-mini {
+    height: 4px; background: var(--border); border-radius: 4px; margin-top: 8px;
+  }
+  .severity-bar-mini-fill {
+    height: 100%; border-radius: 4px; transition: width .3s;
+  }
+  </style>
 </head>
 <body>
 
@@ -24,12 +221,10 @@
   </div>
 </nav>
 
-<!-- App shell -->
 <div class="app-shell">
 
   <!-- Sidebar -->
   <aside class="sidebar">
-    <!-- Patient greeting -->
     <div style="padding:6px 8px 14px;border-bottom:1px solid var(--border);margin-bottom:4px">
       <div class="patient-greeting" style="font-size:.9375rem;font-weight:600;color:var(--text);line-height:1.3"></div>
       <div style="display:flex;align-items:center;gap:5px;margin-top:5px">
@@ -38,27 +233,13 @@
       </div>
     </div>
 
-    <div class="sidebar-section">My Journey</div>
-
-    <button class="step-pill active" id="pill0" onclick="navToSection(0)">
-      <span class="step-num" id="snum0">📋</span>
-      <span>Health History</span>
+    <div class="sidebar-section">My Health</div>
+    <button class="step-pill active" id="pill-home" onclick="navTo('home')">
+      <span class="step-num">🏠</span><span>My Health</span>
+      <span id="consultBadge" style="margin-left:auto;font-size:.65rem;background:var(--accent-bg);color:var(--accent-h);border:1px solid var(--accent-mid);border-radius:var(--r-full);padding:1px 7px;font-weight:600;display:none">0</span>
     </button>
-    <button class="step-pill" id="pill1" onclick="navToSection(1)">
-      <span class="step-num" id="snum1">1</span>
-      <span>Pre-Consultation</span>
-    </button>
-    <button class="step-pill locked" id="pill2" onclick="navToSection(2)">
-      <span class="step-num" id="snum2">2</span>
-      <span>My Summary</span>
-    </button>
-    <button class="step-pill locked" id="pill3" onclick="navToSection(3)">
-      <span class="step-num" id="snum3">3</span>
-      <span>Treatment Plan</span>
-    </button>
-    <button class="step-pill locked" id="pill4" onclick="navToSection(4)">
-      <span class="step-num" id="snum4">4</span>
-      <span>Symptom Tracking</span>
+    <button class="step-pill" id="pill-profile" onclick="navTo('profile')">
+      <span class="step-num">👤</span><span>My Profile</span>
     </button>
 
     <div style="flex:1"></div>
@@ -77,336 +258,572 @@
         <option value="ta">Tamil</option>
       </select>
     </div>
-
     <div style="padding-top:12px;border-top:1px solid var(--border);margin-top:10px">
-      <p style="font-size:.7rem;color:var(--subtle);line-height:1.55">🔒 Identified by patient ID only. No personal data stored.</p>
+      <p style="font-size:.7rem;color:var(--subtle);line-height:1.55">🔒 Identified by patient ID only. No personal data stored on servers.</p>
     </div>
   </aside>
 
-  <!-- Main -->
   <main class="main">
     <div class="main-inner">
 
-      <!-- ── Section 0: Health History ── -->
-      <div id="sec0" style="max-width:680px;margin:0 auto">
-
-        <!-- Header -->
-        <div class="flex items-center justify-between mb-20">
-          <div>
-            <h2 id="historyGreeting" style="font-size:1.375rem">Health History</h2>
-            <p class="text-sm mt-4" style="color:var(--muted)">Your medical record, allergies, medications and past consultations.</p>
-          </div>
-          <button class="btn btn-primary" onclick="navToSection(1)" style="gap:6px;white-space:nowrap">Start consultation <span style="opacity:.8">→</span></button>
+    <!-- ══════════════════════════════════════════════
+         ONBOARDING SURVEY
+    ═══════════════════════════════════════════════ -->
+    <div id="sec-onboarding" style="display:none;max-width:620px;margin:0 auto">
+      <div style="margin-bottom:24px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+          <div class="nav-logo-mark" style="width:32px;height:32px;font-size:.9rem">C</div>
+          <span style="font-size:1.1rem;font-weight:700;color:var(--text)">Welcome to Cue</span>
         </div>
-
-        <!-- Unified health record card -->
-        <div class="card mb-16">
-          <div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:14px;margin-bottom:4px;border-bottom:1px solid var(--border)">
-            <div style="font-size:.875rem;font-weight:600;color:var(--text)">Health Record</div>
-            <div id="hrBtnArea"></div>
-          </div>
-          <div id="hrBody"></div>
-        </div>
-
-        <!-- Past consultations -->
-        <div class="card mb-12" style="padding:0;overflow:hidden">
-          <div style="padding:16px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
-            <div class="card-title" style="display:flex;align-items:center;gap:7px"><span>📅</span> Consultation history</div>
-            <span class="badge badge-gray" id="histConsultCount">0 records</span>
-          </div>
-          <div class="timeline" style="padding:20px 24px" id="histTimeline"></div>
-        </div>
-
-        <!-- Clinical notes -->
-        <div class="card" id="histNotesCard">
-          <div class="card-header" style="margin-bottom:12px"><div class="card-title" style="display:flex;align-items:center;gap:7px"><span>🩺</span> Doctor's notes</div></div>
-          <div class="text-sm" id="histNotes" style="color:var(--text-2);line-height:1.7"></div>
-        </div>
-
+        <p class="text-sm" style="color:var(--muted)">Let's set up your health profile. This takes about 3 minutes and helps your doctor prepare for every visit.</p>
       </div>
 
-      <!-- ── Section 1: Consent → Chat ── -->
-      <div id="sec1" style="display:none">
-
-        <!-- Consent -->
-        <div id="consentCard" style="max-width:560px;margin:0 auto">
-          <h2 style="margin-bottom:6px">Before we begin</h2>
-          <p class="text-sm mb-20">Cue's AI will ask you a short clinical history — using the SOCRATES framework — so your doctor has a clear picture before your appointment. Your responses are linked to your patient ID only.</p>
-
-          <div class="card mb-16">
-            <div class="stack-12">
-              <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
-                <input type="checkbox" id="check1" style="margin-top:3px;accent-color:var(--accent)">
-                <span class="text-sm" style="color:var(--text-2)">I consent to my responses being shared with my assigned physician, linked to my patient ID only.</span>
-              </label>
-              <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
-                <input type="checkbox" id="check2" style="margin-top:3px;accent-color:var(--accent)">
-                <span class="text-sm" style="color:var(--text-2)">I understand voice recordings are transcribed locally and immediately discarded — not stored anywhere.</span>
-              </label>
-            </div>
-          </div>
-
-          <div class="alert alert-info mb-20">
-            <span>🔒</span>
-            <p>Session: <strong class="font-mono" id="consentId">PT-????</strong> · HIPAA &amp; GDPR compliant</p>
-          </div>
-
-          <!-- API key for dynamic AI interview -->
-          <div id="apiKeySection" class="mb-16">
-            <div style="padding:14px 16px;border-radius:var(--r);background:var(--accent-bg);border:1px solid var(--accent-mid);margin-bottom:0">
-              <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-                <span style="font-size:.875rem;font-weight:600;color:var(--accent-h)">🧠 AI-powered interview</span>
-                <span id="apiKeyStatus" class="badge badge-gray" style="font-size:.65rem"></span>
-              </div>
-              <p style="font-size:.78rem;color:var(--text-2);margin-bottom:10px">Enter your Anthropic API key to enable dynamic clinical reasoning — the AI adapts questions based on your responses in real time. Leave blank to use the standard questionnaire.</p>
-              <div style="display:flex;gap-8;gap:8px">
-                <input class="form-input font-mono" id="apiKeyInput" type="password" placeholder="sk-ant-api03-…"
-                  style="flex:1;font-size:.8rem" oninput="onApiKeyInput(this.value)" />
-                <button class="btn btn-ghost btn-sm" onclick="clearApiKey()" id="clearKeyBtn" style="display:none;color:var(--red)">Remove</button>
-              </div>
-              <p style="font-size:.7rem;color:var(--subtle);margin-top:6px">🔒 Key used only in your browser — never sent to Cue servers.</p>
-            </div>
-          </div>
-
-          <button class="btn btn-primary btn-full" onclick="proceedFromConsent()">Start Pre-Consultation →</button>
-        </div>
-
-        <!-- Chat (hidden until consent) -->
-        <div id="chatCard" style="display:none;max-width:580px;margin:0 auto">
-
-          <!-- Progress header -->
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-            <span style="font-size:.72rem;font-weight:600;color:var(--subtle);text-transform:uppercase;letter-spacing:.07em" id="questionCategory">Getting started</span>
-            <span style="font-size:.72rem;color:var(--subtle)" id="questionCounter"></span>
-          </div>
-          <div class="progress-track mb-16" style="height:3px"><div class="progress-fill" id="progressFill" style="width:0%;transition:width .4s ease"></div></div>
-
-          <!-- Chat messages -->
-          <div id="chatContainer" class="chat-area" style="min-height:280px;max-height:420px;overflow-y:auto"></div>
-
-          <!-- Quick reply chips (populated dynamically) -->
-          <div id="quickRepliesBar" style="min-height:0;padding:0"></div>
-
-          <!-- Input bar -->
-          <div class="chat-input-bar" style="margin-top:10px">
-            <button class="record-btn" id="recordBtn" onclick="toggleRecording()" title="Tap to record">🎙️</button>
-            <div class="waveform idle" id="waveform">
-              <div class="wave-bar"></div><div class="wave-bar"></div>
-              <div class="wave-bar"></div><div class="wave-bar"></div>
-              <div class="wave-bar"></div>
-            </div>
-            <input id="typeInput" type="text" placeholder="Type here or tap the mic…"
-              onkeydown="if(event.key==='Enter')sendTyped()" autocomplete="off" />
-            <span id="langBadge" style="display:none;font-size:.72rem;color:var(--accent);white-space:nowrap"></span>
-            <button class="btn btn-primary btn-sm" id="sendBtn" onclick="sendTyped()">Send</button>
-          </div>
-          <div class="flex justify-between mt-6">
-            <span style="font-size:.72rem;color:var(--subtle)" id="waveLabel">🎙 Tap mic to speak</span>
-            <button onclick="skipQuestion()" style="background:none;border:none;cursor:pointer;font-size:.72rem;color:var(--subtle);padding:0">Skip this →</button>
-          </div>
-        </div>
+      <div class="onboard-progress-track">
+        <div class="onboard-progress-fill" id="onboardProgress" style="width:0%"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:20px">
+        <span style="font-size:.72rem;color:var(--subtle)" id="onboardStepLabel">Step 1 of 7</span>
+        <button onclick="skipOnboarding()" style="background:none;border:none;cursor:pointer;font-size:.72rem;color:var(--subtle)">Skip for now →</button>
       </div>
 
-      <!-- ── Section 2: Analysis + Summary ── -->
-      <div id="sec2" style="display:none;max-width:580px;margin:0 auto">
-
-        <!-- Analysis loading -->
-        <div id="analysisPanel">
-          <h2 class="mb-4">Analysing your responses</h2>
-          <p class="text-sm mb-24" style="color:var(--muted)">BioMistral-7B is reviewing your answers…</p>
-          <div class="card">
-            <div class="stack-16">
-              <div class="flex items-center gap-12" id="astep1"><span style="font-size:1rem">⏳</span><span class="text-sm">Extracting symptom features</span></div>
-              <div class="flex items-center gap-12" id="astep2" style="opacity:.3"><span style="font-size:1rem">⏳</span><span class="text-sm">Running differential analysis</span></div>
-              <div class="flex items-center gap-12" id="astep3" style="opacity:.3"><span style="font-size:1rem">⏳</span><span class="text-sm">Generating clinical notes (SOAP)</span></div>
-              <div class="flex items-center gap-12" id="astep4" style="opacity:.3"><span style="font-size:1rem">⏳</span><span class="text-sm">Preparing your summary</span></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Summary -->
-        <div id="summaryPanel" style="display:none">
-          <div class="flex items-center justify-between mb-16">
-            <h2>Your Summary</h2>
-            <span class="badge badge-teal">AI Draft</span>
-          </div>
-          <p class="text-sm mb-20">Your doctor will confirm or adjust the diagnosis before it's finalised.</p>
-
-          <div class="card mb-12">
-            <div class="card-header"><div class="card-title">Symptoms reported</div></div>
-            <div id="symptomSummary" class="stack-8"></div>
-          </div>
-
-          <div class="card mb-12">
-            <div class="card-header">
-              <div class="card-title">AI differential diagnosis</div>
-              <span class="badge badge-gray" style="font-size:.68rem">Requires physician confirmation</span>
-            </div>
-            <div id="diagnosisList" class="stack-8"></div>
-          </div>
-
-          <div class="card mb-16">
-            <div class="card-header"><div class="card-title">Clinical notes</div></div>
-            <div id="clinicalNotes" class="text-sm" style="color:var(--text-2);line-height:1.75"></div>
-          </div>
-
-          <div class="alert alert-info mb-16">
-            <span>⚕️</span>
-            <p>This is an AI draft. Your physician will review and confirm before it becomes part of your record.</p>
-          </div>
-
-          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:16px">
-            <input type="checkbox" id="enableTracking" style="accent-color:var(--accent)">
-            <span class="text-sm" style="color:var(--text-2)">Opt in to every-other-day symptom check-in calls</span>
-          </label>
-
-          <button class="btn btn-primary btn-full" onclick="submitConsultation()">Send to Doctor →</button>
-        </div>
-      </div>
-
-      <!-- ── Section 3: Treatment Plan ── -->
-      <div id="sec3" style="display:none;max-width:560px;margin:0 auto">
-        <h2 class="mb-4">Treatment Plan</h2>
-        <p class="text-sm mb-20">Set by your physician after reviewing your pre-consultation.</p>
-
-        <div id="awaitingDoctor" class="card" style="text-align:center;padding:52px 24px">
-          <div style="font-size:2.5rem;margin-bottom:12px">⏳</div>
-          <h3 style="margin-bottom:8px">Awaiting doctor review</h3>
-          <p class="text-sm">Your pre-consultation has been sent. Your physician will confirm the diagnosis and add a treatment plan.</p>
-        </div>
-
-        <div id="treatmentPanel" style="display:none">
-          <div class="alert alert-success mb-16">
-            <span>✓</span>
-            <p><strong>Diagnosis confirmed</strong> by your physician. The plan below is active.</p>
-          </div>
-          <div class="card mb-12">
-            <div class="card-header"><div class="card-title">Confirmed diagnosis</div></div>
-            <div id="confirmedDx"></div>
-          </div>
-          <div class="card mb-12">
-            <div class="card-header"><div class="card-title">Medications &amp; instructions</div></div>
-            <div id="treatmentMeds" class="stack-8"></div>
-          </div>
-          <div class="card">
-            <div class="card-header"><div class="card-title">Follow-up schedule</div></div>
-            <div id="treatmentFollowup" class="text-sm" style="color:var(--text-2)"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── Section 4: Symptom Tracking ── -->
-      <div id="sec4" style="display:none;max-width:680px;margin:0 auto">
-
-        <div class="flex items-center justify-between mb-20">
-          <div>
-            <h2>Symptom Tracking</h2>
-            <p class="text-sm mt-4">Log how you feel. Your doctor monitors your recovery in real time.</p>
-          </div>
-          <div class="flex gap-8">
-            <span class="badge badge-green" style="padding:5px 10px">● Active</span>
-            <button class="btn btn-primary btn-sm" onclick="openLogModal()">+ Log now</button>
-          </div>
-        </div>
-
-        <div class="stat-row mb-20" style="grid-template-columns:repeat(3,1fr)">
-          <div class="stat-card">
-            <div class="stat-val" id="trakDays">6</div>
-            <div class="stat-label">Days tracked</div>
-            <div class="stat-sub up">↓ Improving</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-val" id="trakSev">3.2</div>
-            <div class="stat-label">Avg severity</div>
-            <div class="stat-sub neutral">↓ from 7.1</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-val" style="font-size:1.1rem;color:var(--amber)" id="trakNext">48h</div>
-            <div class="stat-label">Next check-in</div>
-            <div class="stat-sub neutral">Scheduled</div>
-          </div>
-        </div>
-
-        <div class="card mb-12" style="padding:0;overflow:hidden">
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);background:var(--surface-2)">
-            <div class="card-title">Symptom timeline</div>
-            <select class="form-select" style="width:auto;padding:5px 10px;font-size:.78rem" onchange="filterTimeline(this.value)">
-              <option value="all">All entries</option>
-              <option value="outlier">Outliers only</option>
-              <option value="improving">Improving</option>
-            </select>
-          </div>
-          <div style="padding:20px">
-            <div class="timeline" id="timelineList"></div>
-          </div>
-        </div>
-
+      <!-- Step 1: About You -->
+      <div class="onboard-step active" id="ob-step-1">
+        <h2 style="margin-bottom:6px">About you</h2>
+        <p class="text-sm mb-20" style="color:var(--muted)">Basic personal details used to personalise your care.</p>
         <div class="card">
-          <div class="card-header">
-            <div class="card-title">Severity over time</div>
-            <span class="text-xs" style="color:var(--subtle)">dashed line = alert threshold (6)</span>
+          <div class="stack-16">
+            <div class="hr-field-grid">
+              <div class="form-group" style="margin:0">
+                <label class="form-label">Age group</label>
+                <select class="form-select" id="ob-ageGroup">
+                  <option value="">Select…</option>
+                  <option>Child (under 12)</option><option>Teen (12–17)</option>
+                  <option>Young adult (18–25)</option><option>Adult (26–35)</option>
+                  <option>Adult (36–45)</option><option>Adult (46–55)</option>
+                  <option>Adult (56–65)</option><option>Senior (66+)</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin:0">
+                <label class="form-label">Biological sex</label>
+                <select class="form-select" id="ob-sex">
+                  <option value="">Select…</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="intersex">Intersex</option>
+                  <option value="prefer_not">Prefer not to say</option>
+                </select>
+              </div>
+            </div>
+            <div class="hr-field-grid">
+              <div class="form-group" style="margin:0">
+                <label class="form-label">Blood type</label>
+                <select class="form-select" id="ob-bloodType">
+                  <option value="">Unknown</option>
+                  <option>A+</option><option>A-</option><option>B+</option><option>B-</option>
+                  <option>AB+</option><option>AB-</option><option>O+</option><option>O-</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin:0">
+                <label class="form-label">Ethnicity (optional)</label>
+                <select class="form-select" id="ob-ethnicity">
+                  <option value="">Prefer not to say</option>
+                  <option>White / European</option><option>Black / African</option>
+                  <option>South Asian</option><option>East Asian</option>
+                  <option>Southeast Asian</option><option>Hispanic / Latino</option>
+                  <option>Middle Eastern</option><option>Mixed / Other</option>
+                </select>
+              </div>
+            </div>
           </div>
-          <canvas id="severityChart" height="160" style="width:100%;display:block;margin-top:8px"></canvas>
         </div>
-
       </div>
+
+      <!-- Step 2: Family History -->
+      <div class="onboard-step" id="ob-step-2">
+        <h2 style="margin-bottom:6px">Family history</h2>
+        <p class="text-sm mb-20" style="color:var(--muted)">Hereditary conditions in your close family help identify genetic risk factors.</p>
+        <div class="card mb-12">
+          <div class="hr-section-label" style="margin-bottom:12px">Which conditions run in your family?</div>
+          <div class="check-grid" id="fh-conditions-grid">
+            <!-- rendered by JS -->
+          </div>
+        </div>
+        <div class="card">
+          <div class="hr-section-label" style="margin-bottom:10px">Who is affected?</div>
+          <div id="fh-relations">
+            <!-- rows rendered by JS -->
+          </div>
+          <div class="form-group mt-12" style="margin-bottom:0">
+            <label class="form-label">Any additional family history notes</label>
+            <textarea class="form-textarea" id="ob-fhNotes" rows="2" placeholder="e.g. maternal grandmother had breast cancer at 60…"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 3: Your Medical History -->
+      <div class="onboard-step" id="ob-step-3">
+        <h2 style="margin-bottom:6px">Your medical history</h2>
+        <p class="text-sm mb-20" style="color:var(--muted)">Conditions you have or have had, and any major procedures.</p>
+        <div class="card mb-12">
+          <div class="hr-section-label" style="margin-bottom:10px">Existing or past conditions</div>
+          <div id="ob-condList"></div>
+          <div class="hr-add-block" id="ob-condAdd">
+            <div class="hr-add-block-label">Add condition</div>
+            <input class="form-input" id="ob-condLabel" placeholder="e.g. Type 2 Diabetes, Asthma" />
+            <div class="flex gap-8">
+              <input class="form-input" id="ob-condIcd"   placeholder="ICD-10 (optional)" style="flex:1" />
+              <input class="form-input" id="ob-condSince" placeholder="Since year" style="flex:1" />
+              <select class="form-select" id="ob-condStatus" style="flex:1">
+                <option value="ongoing">Ongoing</option>
+                <option value="managed">Managed</option>
+                <option value="resolved">Resolved</option>
+              </select>
+            </div>
+            <button class="btn btn-outline btn-sm" style="align-self:flex-start" onclick="obAddCondition()">+ Add</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="hr-section-label" style="margin-bottom:10px">Surgeries or major procedures</div>
+          <div id="ob-surgList"></div>
+          <div class="hr-add-row" style="margin-top:8px">
+            <input class="form-input" id="ob-surgInput" placeholder="e.g. Appendectomy (2019), Knee replacement (2022)" onkeydown="if(event.key==='Enter')obAddStr('surgeries','ob-surgInput')" />
+            <button class="btn btn-outline btn-sm" onclick="obAddStr('surgeries','ob-surgInput')">+ Add</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4: Medications & Allergies -->
+      <div class="onboard-step" id="ob-step-4">
+        <h2 style="margin-bottom:6px">Medications &amp; allergies</h2>
+        <p class="text-sm mb-20" style="color:var(--muted)">What you currently take and anything you react to.</p>
+        <div class="card mb-12">
+          <div class="hr-section-label" style="margin-bottom:10px">Current medications</div>
+          <div id="ob-medList"></div>
+          <div class="hr-add-block">
+            <div class="hr-add-block-label">Add medication</div>
+            <input class="form-input" id="ob-medName" placeholder="Name (e.g. Metformin 500mg)" />
+            <input class="form-input" id="ob-medDose" placeholder="Frequency (e.g. Twice daily with food)" />
+            <div class="flex gap-8">
+              <select class="form-select" id="ob-medType" style="flex:1">
+                <option value="maintenance">Maintenance</option>
+                <option value="acute">Acute (PRN)</option>
+                <option value="supplement">Supplement / Vitamin</option>
+              </select>
+              <button class="btn btn-outline btn-sm" onclick="obAddMed()">+ Add</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="hr-section-label" style="margin-bottom:10px">Known allergies &amp; intolerances</div>
+          <div class="hr-chips mb-8" id="ob-allergyChips"></div>
+          <div class="hr-add-row">
+            <input class="form-input" id="ob-allergyInput" placeholder="e.g. Penicillin, Peanuts, Latex…" onkeydown="if(event.key==='Enter')obAddStr('allergies','ob-allergyInput')" />
+            <button class="btn btn-outline btn-sm" onclick="obAddStr('allergies','ob-allergyInput')">+ Add</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5: Lifestyle -->
+      <div class="onboard-step" id="ob-step-5">
+        <h2 style="margin-bottom:6px">Lifestyle</h2>
+        <p class="text-sm mb-20" style="color:var(--muted)">Social and lifestyle factors that influence your health.</p>
+        <div class="card">
+          <div class="stack-16">
+            <div class="form-group" style="margin:0">
+              <label class="form-label">Smoking status</label>
+              <select class="form-select" id="ob-smoking">
+                <option value="never">Never smoked</option>
+                <option value="ex">Ex-smoker</option>
+                <option value="occasional">Occasional smoker</option>
+                <option value="regular">Regular smoker (daily)</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin:0">
+              <label class="form-label">Alcohol consumption</label>
+              <select class="form-select" id="ob-alcohol">
+                <option value="never">None</option>
+                <option value="rarely">Rarely (special occasions)</option>
+                <option value="socially">Socially (1–2 drinks/week)</option>
+                <option value="moderate">Moderate (3–7 drinks/week)</option>
+                <option value="heavy">Heavy (8+ drinks/week)</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin:0">
+              <label class="form-label">Physical activity</label>
+              <select class="form-select" id="ob-exercise">
+                <option value="sedentary">Sedentary (little to no exercise)</option>
+                <option value="light">Light (1–2 days/week)</option>
+                <option value="moderate">Moderate (3–4 days/week)</option>
+                <option value="active">Active (5+ days/week)</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin:0">
+              <label class="form-label">Diet</label>
+              <select class="form-select" id="ob-diet">
+                <option value="balanced">Balanced / No restrictions</option>
+                <option value="vegetarian">Vegetarian</option>
+                <option value="vegan">Vegan</option>
+                <option value="gluten_free">Gluten-free</option>
+                <option value="diabetic">Diabetic diet</option>
+                <option value="low_sodium">Low sodium</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin:0">
+              <label class="form-label">Occupation (optional)</label>
+              <input class="form-input" id="ob-occupation" placeholder="e.g. Office worker, Construction, Healthcare…" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6: Vaccinations -->
+      <div class="onboard-step" id="ob-step-6">
+        <h2 style="margin-bottom:6px">Vaccinations</h2>
+        <p class="text-sm mb-20" style="color:var(--muted)">Record any vaccinations you've had.</p>
+        <div class="card">
+          <div class="hr-chips mb-10" id="ob-vaccChips">
+            <span style="font-size:.82rem;color:var(--muted)">No vaccinations added yet.</span>
+          </div>
+          <div class="hr-add-row">
+            <input class="form-input" id="ob-vaccInput" placeholder="e.g. COVID-19 (Mar 2021), Flu vaccine (Oct 2024)…" onkeydown="if(event.key==='Enter')obAddStr('vaccinations','ob-vaccInput')" />
+            <button class="btn btn-outline btn-sm" onclick="obAddStr('vaccinations','ob-vaccInput')">+ Add</button>
+          </div>
+          <div class="form-group mt-16" style="margin-bottom:0">
+            <label class="form-label">Recent travel history</label>
+            <div id="ob-travelList"></div>
+            <div class="hr-add-block mt-10">
+              <div class="hr-add-block-label">Add trip</div>
+              <input class="form-input" id="ob-travelDest" placeholder="Destination (e.g. India, Mumbai)" />
+              <div class="flex gap-8">
+                <input class="form-input" id="ob-travelDate" placeholder="Month & year" style="flex:1" />
+                <input class="form-input" id="ob-travelDur"  placeholder="Duration"     style="flex:1" />
+                <button class="btn btn-outline btn-sm" onclick="obAddTravel()">+ Add</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 7: Done -->
+      <div class="onboard-step" id="ob-step-7">
+        <div style="text-align:center;padding:16px 0">
+          <div style="font-size:3rem;margin-bottom:16px">✅</div>
+          <h2 style="margin-bottom:8px">Profile complete</h2>
+          <p class="text-sm mb-24" style="color:var(--muted)">Your health record has been saved. You can update it any time from <strong>My Profile</strong>.</p>
+          <button class="btn btn-primary" onclick="finishOnboarding()" style="min-width:200px">Go to My Health →</button>
+        </div>
+      </div>
+
+      <!-- Nav buttons -->
+      <div class="flex justify-between mt-24" id="onboardNavRow">
+        <button class="btn btn-ghost" id="onboardBackBtn" onclick="obBack()" style="display:none">← Back</button>
+        <div style="flex:1"></div>
+        <button class="btn btn-primary" id="onboardNextBtn" onclick="obNext()">Continue →</button>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════
+         HOME — SICKNESS CARDS
+    ═══════════════════════════════════════════════ -->
+    <div id="sec-home" style="display:none;max-width:760px;margin:0 auto">
+
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h2 id="homeGreeting">My Health</h2>
+          <p class="text-sm mt-4" style="color:var(--muted)">Each health concern is its own thread, tracked from first symptom to recovery.</p>
+        </div>
+        <button class="btn btn-primary" onclick="createNewConsultation()" style="gap:6px;white-space:nowrap;flex-shrink:0">+ New</button>
+      </div>
+
+      <div class="flex items-center justify-between mb-16">
+        <div class="filter-tabs" id="filterTabs">
+          <button class="filter-tab active" onclick="filterSickness('all',this)">All</button>
+          <button class="filter-tab" onclick="filterSickness('new',this)">New</button>
+          <button class="filter-tab" onclick="filterSickness('ongoing',this)">Ongoing</button>
+          <button class="filter-tab" onclick="filterSickness('archived',this)">Archived</button>
+        </div>
+        <div class="view-toggle">
+          <button class="view-toggle-btn active" id="viewGrid" onclick="setView('grid')" title="Grid view">⊞</button>
+          <button class="view-toggle-btn" id="viewList" onclick="setView('list')" title="List view">≡</button>
+        </div>
+      </div>
+
+      <div id="sicknessContainer"><!-- rendered by JS --></div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════
+         SICKNESS THREAD DETAIL
+    ═══════════════════════════════════════════════ -->
+    <div id="sec-thread" style="display:none;max-width:660px;margin:0 auto">
+
+      <!-- Thread header -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid var(--border)">
+        <button onclick="backToHome()" class="btn btn-ghost btn-sm" style="flex-shrink:0">← Back</button>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span id="threadTitle" style="font-size:1rem;font-weight:600;color:var(--text)">Consultation</span>
+            <span id="threadStatusBadge" class="badge badge-gray">New</span>
+          </div>
+          <div id="threadMeta" style="font-size:.72rem;color:var(--muted);margin-top:3px"></div>
+        </div>
+        <div id="threadActions" style="display:flex;gap:6px;flex-shrink:0"></div>
+      </div>
+
+      <!-- Timeline stages -->
+      <div class="thread-stages" id="threadStages"><!-- rendered by JS --></div>
 
     </div>
+
+    <!-- ══════════════════════════════════════════════
+         MY PROFILE
+    ═══════════════════════════════════════════════ -->
+    <div id="sec-profile" style="display:none;max-width:660px;margin:0 auto">
+      <div class="flex items-center justify-between mb-20">
+        <div>
+          <h2>My Profile</h2>
+          <p class="text-sm mt-4" style="color:var(--muted)">Your complete health record — visible only to you and your physician.</p>
+        </div>
+        <div id="hrBtnArea"></div>
+      </div>
+      <div class="card">
+        <div id="hrBody"></div>
+      </div>
+    </div>
+
+    </div><!-- /main-inner -->
   </main>
 </div>
 
-<!-- Log Modal -->
+<!-- ── Embedded phase content templates (hidden, cloned by JS) ── -->
+
+<!-- Consent template -->
+<template id="tpl-consent">
+  <div style="max-width:540px">
+    <h3 style="margin-bottom:6px">Before we begin</h3>
+    <p class="text-sm mb-20" style="color:var(--muted)">Cue's AI will take a structured history so your doctor has a clear picture before your appointment.</p>
+    <div class="card mb-12">
+      <div class="stack-12">
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
+          <input type="checkbox" class="consent-check-1" style="margin-top:3px;accent-color:var(--accent)">
+          <span class="text-sm" style="color:var(--text-2)">I consent to my responses being shared with my assigned physician, linked to my patient ID only.</span>
+        </label>
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
+          <input type="checkbox" class="consent-check-2" style="margin-top:3px;accent-color:var(--accent)">
+          <span class="text-sm" style="color:var(--text-2)">I understand voice recordings are transcribed locally and immediately discarded — not stored anywhere.</span>
+        </label>
+      </div>
+    </div>
+    <div class="mb-12">
+      <div style="padding:14px 16px;border-radius:var(--r);background:var(--accent-bg);border:1px solid var(--accent-mid)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="font-size:.875rem;font-weight:600;color:var(--accent-h)">🧠 AI-powered interview</span>
+          <span class="api-key-status badge badge-gray" style="font-size:.65rem">● Standard questionnaire</span>
+        </div>
+        <div style="display:flex;gap:8px">
+          <input class="form-input font-mono api-key-input" type="password" placeholder="sk-ant-api03-… (optional)" style="flex:1;font-size:.8rem" />
+        </div>
+        <p style="font-size:.7rem;color:var(--subtle);margin-top:6px">Key used only in your browser — never sent to Cue servers.</p>
+      </div>
+    </div>
+    <button class="btn btn-primary" style="width:100%" onclick="proceedFromConsent(this)">Start interview →</button>
+  </div>
+</template>
+
+<!-- Chat template -->
+<template id="tpl-chat">
+  <div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <span style="font-size:.72rem;font-weight:600;color:var(--subtle);text-transform:uppercase;letter-spacing:.07em" class="question-category">Getting started</span>
+      <span style="font-size:.72rem;color:var(--subtle)" class="question-counter"></span>
+    </div>
+    <div class="progress-track mb-12" style="height:3px"><div class="progress-fill chat-progress" style="width:0%;transition:width .4s ease"></div></div>
+    <div class="chat-area chat-container" style="min-height:260px;max-height:380px;overflow-y:auto;margin-bottom:0"></div>
+    <div class="quick-replies-bar" style="min-height:0;padding:0"></div>
+    <div class="chat-input-bar" style="margin-top:10px">
+      <button class="record-btn chat-record-btn" onclick="toggleRecording()" title="Tap to record">🎙️</button>
+      <div class="waveform idle chat-waveform">
+        <div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+      </div>
+      <input type="text" class="chat-type-input" placeholder="Type here or tap the mic…" onkeydown="if(event.key==='Enter')sendTyped()" autocomplete="off" />
+      <span class="lang-badge" style="display:none;font-size:.72rem;color:var(--accent);white-space:nowrap"></span>
+      <button class="btn btn-primary btn-sm chat-send-btn" onclick="sendTyped()">Send</button>
+    </div>
+    <div class="flex justify-between mt-6">
+      <span style="font-size:.72rem;color:var(--subtle)" class="wave-label">🎙 Tap mic to speak</span>
+      <button onclick="skipQuestion()" style="background:none;border:none;cursor:pointer;font-size:.72rem;color:var(--subtle);padding:0">Skip →</button>
+    </div>
+  </div>
+</template>
+
+<!-- Analysis template -->
+<template id="tpl-analysis">
+  <div>
+    <p class="text-sm mb-16" style="color:var(--muted)">Reviewing your answers…</p>
+    <div class="card">
+      <div class="stack-16">
+        <div class="flex items-center gap-12 analysis-step" id="astep1"><span>⏳</span><span class="text-sm">Extracting symptom features</span></div>
+        <div class="flex items-center gap-12 analysis-step" id="astep2" style="opacity:.3"><span>⏳</span><span class="text-sm">Running differential analysis</span></div>
+        <div class="flex items-center gap-12 analysis-step" id="astep3" style="opacity:.3"><span>⏳</span><span class="text-sm">Generating SOAP notes</span></div>
+        <div class="flex items-center gap-12 analysis-step" id="astep4" style="opacity:.3"><span>⏳</span><span class="text-sm">Preparing your summary</span></div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<!-- Summary template -->
+<template id="tpl-summary">
+  <div>
+    <div class="flex items-center gap-8 mb-12">
+      <span class="badge badge-teal">AI Draft</span>
+      <span class="text-xs" style="color:var(--muted)">Your doctor will confirm before this becomes part of your record.</span>
+    </div>
+    <div class="card mb-12">
+      <div class="card-header"><div class="card-title">Symptoms reported</div></div>
+      <div class="symptom-summary stack-8"></div>
+    </div>
+    <div class="card mb-12">
+      <div class="card-header">
+        <div class="card-title">Suggested diagnoses</div>
+        <span class="badge badge-amber" style="font-size:.68rem">Awaiting doctor confirmation</span>
+      </div>
+      <div class="diagnosis-list stack-8"></div>
+    </div>
+    <div class="card mb-16">
+      <div class="card-header"><div class="card-title">Clinical notes (SOAP)</div></div>
+      <div class="clinical-notes text-sm" style="color:var(--text-2);line-height:1.75"></div>
+    </div>
+    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:16px">
+      <input type="checkbox" class="enable-tracking" style="accent-color:var(--accent)">
+      <span class="text-sm" style="color:var(--text-2)">Opt in to every-other-day symptom check-ins</span>
+    </label>
+    <button class="btn btn-primary" style="width:100%" onclick="submitConsultation()">Send to my doctor →</button>
+  </div>
+</template>
+
+<!-- Doctor review template -->
+<template id="tpl-doctor-review">
+  <div>
+    <div id="dr-awaiting" class="card" style="text-align:center;padding:36px 20px">
+      <div style="font-size:2rem;margin-bottom:10px">⏳</div>
+      <h4 style="margin-bottom:6px">Awaiting doctor review</h4>
+      <p class="text-sm" style="color:var(--muted)">Your pre-consultation has been sent. Your physician will review the AI summary and confirm the diagnosis.</p>
+      <button class="btn btn-ghost btn-sm mt-16" onclick="simulateDoctorConfirm()" style="color:var(--subtle);font-size:.72rem">Demo: Simulate doctor confirmation →</button>
+    </div>
+    <div id="dr-confirmed" style="display:none">
+      <div class="alert alert-success mb-12">
+        <span>✓</span>
+        <p><strong>Diagnosis confirmed</strong> by your physician.</p>
+      </div>
+      <div class="card mb-12">
+        <div class="card-header"><div class="card-title">Confirmed diagnosis</div></div>
+        <div class="confirmed-dx"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Doctor's notes</div></div>
+        <div class="doctor-notes text-sm" style="color:var(--text-2);line-height:1.7"></div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<!-- Treatment template -->
+<template id="tpl-treatment">
+  <div class="card">
+    <div class="card-header"><div class="card-title">Treatment plan</div></div>
+    <div class="treatment-content stack-8"></div>
+  </div>
+</template>
+
+<!-- Tracking template -->
+<template id="tpl-tracking">
+  <div>
+    <div class="flex items-center justify-between mb-16">
+      <div>
+        <p class="text-sm" style="color:var(--muted)">Log check-ins to track your recovery. Your doctor monitors in real time.</p>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="openLogModal()">+ Log now</button>
+    </div>
+    <div class="stat-row mb-16" style="grid-template-columns:repeat(3,1fr)">
+      <div class="stat-card">
+        <div class="stat-val track-days">0</div>
+        <div class="stat-label">Days tracked</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val track-avg-sev">—</div>
+        <div class="stat-label">Avg severity</div>
+        <div class="stat-sub neutral track-trend">No data yet</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" style="font-size:1.1rem;color:var(--amber)" id="trakNext">—</div>
+        <div class="stat-label">Next check-in</div>
+      </div>
+    </div>
+    <div class="card mb-12" style="padding:0;overflow:hidden">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid var(--border);background:var(--surface-2)">
+        <div class="card-title" style="margin:0">Entries</div>
+        <select class="form-select" style="width:auto;padding:4px 10px;font-size:.78rem" onchange="filterTimeline(this.value)">
+          <option value="all">All entries</option>
+          <option value="outlier">High severity</option>
+          <option value="improving">Improving</option>
+        </select>
+      </div>
+      <div style="padding:16px 18px">
+        <div class="timeline tracking-timeline"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Severity over time</div>
+        <span class="text-xs" style="color:var(--subtle)">dashed = alert (≥7)</span>
+      </div>
+      <canvas class="severity-chart" height="150" style="width:100%;display:block;margin-top:8px"></canvas>
+    </div>
+  </div>
+</template>
+
+<!-- ── Log Modal ── -->
 <div class="modal-overlay" id="logModal">
-  <div class="modal" style="max-width:560px">
+  <div class="modal" style="max-width:520px">
     <div class="modal-header">
       <h3>Log symptoms</h3>
       <button class="modal-close" onclick="closeLogModal()">✕</button>
     </div>
-
-    <div class="alert alert-info mb-16" style="font-size:.8rem">
-      <span>🔒</span>
-      <p>Logged under <strong class="font-mono" id="logPatientId">PT-????</strong></p>
+    <div class="alert alert-info mb-12" style="font-size:.8rem">
+      <span>🔒</span><p>Logged under <strong class="font-mono" id="logPatientId">PT-????</strong></p>
     </div>
-
-    <div class="flex items-center justify-between mb-6">
-      <span class="text-xs" style="color:var(--muted)">Check-in progress</span>
+    <div class="flex items-center justify-between mb-4">
+      <span class="text-xs" style="color:var(--muted)">Progress</span>
       <span class="text-xs font-mono" id="checkinProgressLabel">0 / 5</span>
     </div>
-    <div class="progress-track mb-14"><div class="progress-fill" id="checkinProgress" style="width:0%"></div></div>
-
-    <div id="checkinChat" style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;margin-bottom:12px"></div>
-
+    <div class="progress-track mb-12"><div class="progress-fill" id="checkinProgress" style="width:0%"></div></div>
+    <div id="checkinChat" style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
     <div class="chat-input-bar">
       <button class="record-btn" id="logRecordBtn" onclick="toggleLogRecording()">🎙️</button>
       <div class="waveform idle" id="logWaveform">
         <div class="wave-bar"></div><div class="wave-bar"></div>
-        <div class="wave-bar"></div><div class="wave-bar"></div>
-        <div class="wave-bar"></div>
+        <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
       </div>
-      <input type="text" id="checkinInput" placeholder="Type your answer…"
-        onkeydown="if(event.key==='Enter')sendCheckinTyped()" />
+      <input type="text" id="checkinInput" placeholder="Type your answer…" onkeydown="if(event.key==='Enter')sendCheckinTyped()" />
       <button class="btn btn-primary btn-sm" onclick="sendCheckinTyped()">Send</button>
     </div>
-
-    <hr class="divider mt-16 mb-14">
-
+    <hr class="divider mt-14 mb-12">
     <div id="checkinSubmitRow" style="display:none">
-      <div class="flex items-center gap-12 mb-14">
-        <span class="text-sm font-600" style="min-width:130px">Overall severity</span>
-        <input type="range" class="slider" min="0" max="10" value="3" id="overallSeverity"
-          oninput="document.getElementById('overallSeverityVal').textContent=this.value">
+      <div class="flex items-center gap-12 mb-12">
+        <span class="text-sm font-600" style="min-width:110px">Overall severity</span>
+        <input type="range" class="slider" min="0" max="10" value="3" id="overallSeverity" oninput="document.getElementById('overallSeverityVal').textContent=this.value">
         <span class="slider-val" id="overallSeverityVal">3</span>
       </div>
-      <div class="form-group mb-14">
+      <div class="form-group mb-12">
         <label class="form-label">Additional notes (optional)</label>
-        <textarea class="form-textarea" id="logNotes" placeholder="Anything else to add…" rows="2"></textarea>
+        <textarea class="form-textarea" id="logNotes" rows="2" placeholder="Anything else to add…"></textarea>
       </div>
       <div class="flex gap-10">
         <button class="btn btn-ghost" onclick="closeLogModal()">Cancel</button>
         <button class="btn btn-primary flex-1" onclick="submitLog()">Save entry</button>
       </div>
     </div>
-
     <div id="checkinCancelRow">
       <button class="btn btn-ghost btn-sm" onclick="closeLogModal()">Cancel</button>
     </div>
@@ -415,80 +832,7 @@
 
 <div class="toast" id="toast"></div>
 
-
-<style>
-/* Quick reply chips */
-.quick-replies {
-  display: flex; flex-wrap: wrap; gap: 7px;
-  padding: 10px 0 4px 46px;
-  animation: fadeIn .2s ease;
-}
-.quick-reply-chip {
-  background: var(--surface); border: 1.5px solid var(--accent-mid);
-  color: var(--accent-h); font-size: .8rem; padding: 6px 14px;
-  border-radius: var(--r-full); cursor: pointer; font-family: var(--font);
-  transition: all .12s; white-space: nowrap; line-height: 1;
-}
-.quick-reply-chip:hover { background: var(--accent-bg); border-color: var(--accent); transform: translateY(-1px); }
-.quick-reply-chip:active { transform: translateY(0); }
-
-/* Chat bubble fade-in */
-@keyframes bubbleIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.chat-row { animation: bubbleIn .22s ease forwards; }
-
-/* Health record form */
-.hr-section { padding: 16px 0; border-bottom: 1px solid var(--border); }
-.hr-section:first-child { padding-top: 12px; }
-.hr-section:last-child { border-bottom: none; padding-bottom: 0; }
-.hr-section-label {
-  font-size: .6875rem; font-weight: 600; color: var(--subtle);
-  text-transform: uppercase; letter-spacing: .07em; margin-bottom: 10px;
-}
-.hr-field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.hr-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.hr-chip-item {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 4px 10px; background: var(--surface-2); border: 1px solid var(--border);
-  border-radius: var(--r-full); font-size: .8125rem; color: var(--text-2);
-}
-.hr-chip-item.danger { background: #FEF2F2; border-color: #FECACA; color: #991B1B; }
-.hr-chip-item.accent { background: var(--accent-bg); border-color: var(--accent-mid); color: var(--accent-h); }
-.hr-remove {
-  background: none; border: none; cursor: pointer; color: var(--muted);
-  font-size: .9rem; padding: 0; line-height: 1; border-radius: 2px; transition: color .1s;
-}
-.hr-remove:hover { color: var(--red); }
-.hr-add-row { display: flex; gap: 6px; margin-top: 8px; }
-.hr-add-row .form-input { flex: 1; height: 32px; font-size: .8125rem; }
-.hr-add-row .btn { height: 32px; font-size: .78rem; padding: 0 12px; }
-.hr-structured-item {
-  display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
-  padding: 9px 12px; background: var(--surface-2); border: 1px solid var(--border);
-  border-radius: var(--r); margin-bottom: 6px;
-}
-.hr-structured-item:last-of-type { margin-bottom: 0; }
-.hr-add-block {
-  margin-top: 10px; padding: 12px; background: var(--surface-2);
-  border: 1px dashed var(--border-2); border-radius: var(--r);
-  display: flex; flex-direction: column; gap: 8px;
-}
-.hr-add-block-label {
-  font-size: .71rem; font-weight: 600; color: var(--subtle);
-  text-transform: uppercase; letter-spacing: .06em;
-}
-.hr-travel-card {
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px 12px; background: var(--surface-2); border: 1px solid var(--border);
-  border-radius: var(--r); margin-bottom: 6px;
-}
-.hr-vacc-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; }
-</style>
-
-<script src="app.js?v=11"></script>
-<script src="patient.js?v=11"></script>
-<script src="tracker.js?v=11"></script>
+<script src="app.js?v=12"></script>
+<script src="patient.js?v=12"></script>
 </body>
 </html>

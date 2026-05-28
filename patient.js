@@ -298,30 +298,75 @@ function renderHome() {
   var greeting = document.getElementById('homeGreeting');
   if (greeting) greeting.textContent = fn ? 'Hello, ' + fn : 'My Health';
 
-  var list = getConsultations(_p.Session.id);
-  updateBadge(list.length);
-  renderSicknessCards(list, _currentFilter, _currentView);
+  var allList      = getConsultations(_p.Session.id);
+  // Submitted = sent to doctor; these appear as cards
+  var submitted    = allList.filter(isSubmitted);
+  // Unfinished = interview not yet sent; shown as a resumable draft banner
+  var draft        = allList.find(function(t) { return !isSubmitted(t); });
+
+  updateBadge(submitted.length);
+  renderDraftBanner(draft);
+  renderSicknessCards(submitted, _currentFilter, _currentView);
+}
+
+// A consultation only appears in the list once the patient has sent it to the doctor
+function isSubmitted(t) {
+  return !!t.submittedAt;
+}
+
+function renderDraftBanner(draft) {
+  var container = document.getElementById('sicknessContainer');
+  // Remove existing banner if any
+  var existing = document.getElementById('draftBanner');
+  if (existing) existing.remove();
+
+  if (!draft) return;
+  var banner = document.createElement('div');
+  banner.id = 'draftBanner';
+  banner.style.cssText = 'display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--accent-bg);border:1.5px solid var(--accent-mid);border-radius:var(--r);margin-bottom:14px;cursor:pointer;';
+  banner.onclick = function() { openThread(draft.id); };
+  banner.innerHTML =
+    '<span style="font-size:1.2rem">📝</span>' +
+    '<div style="flex:1;min-width:0">' +
+      '<div style="font-size:.875rem;font-weight:600;color:var(--accent-h)">You have an unfinished interview</div>' +
+      '<div style="font-size:.78rem;color:var(--text-2);margin-top:2px">' + escapeHtml(draft.title || 'New consultation') + ' — tap to continue</div>' +
+    '</div>' +
+    '<button onclick="event.stopPropagation();discardDraft(\'' + draft.id + '\')" style="background:none;border:none;cursor:pointer;font-size:.75rem;color:var(--muted);padding:4px 6px;border-radius:4px;flex-shrink:0" title="Discard">✕ Discard</button>' +
+    '<span style="color:var(--accent-h);font-size:1rem;flex-shrink:0">›</span>';
+  if (container) container.insertAdjacentElement('beforebegin', banner);
+}
+
+function discardDraft(id) {
+  if (!confirm('Discard this unfinished interview?')) return;
+  var ptId = _p.Session.id;
+  var list = getConsultations(ptId).filter(function(t) { return t.id !== id; });
+  saveConsultations(ptId, list);
+  if (_activeThread && _activeThread.id === id) _activeThread = null;
+  renderHome();
+  showToast('Interview discarded');
 }
 
 function renderSicknessCards(list, filter, view) {
   var container = document.getElementById('sicknessContainer');
   if (!container) return;
 
-  var filtered = filter === 'all' ? list : list.filter(function (t) { return t.status === filter || (filter === 'ongoing' && t.status === 'pending'); });
+  var filtered = filter === 'all'
+    ? list
+    : list.filter(function(t) { return t.status === filter || (filter === 'ongoing' && t.status === 'pending'); });
 
   if (filtered.length === 0) {
     container.innerHTML =
       '<div class="empty-state">' +
         '<div style="font-size:3rem;margin-bottom:14px">' + (list.length === 0 ? '💊' : '🔍') + '</div>' +
-        '<h3 style="margin-bottom:8px">' + (list.length === 0 ? 'No health issues logged yet' : 'No items match this filter') + '</h3>' +
-        '<p class="text-sm mb-20" style="color:var(--muted)">' + (list.length === 0 ? 'Start a new consultation to document a health concern.' : 'Try selecting a different filter.') + '</p>' +
+        '<h3 style="margin-bottom:8px">' + (list.length === 0 ? 'No consultations yet' : 'No items match this filter') + '</h3>' +
+        '<p class="text-sm mb-20" style="color:var(--muted)">' + (list.length === 0 ? 'Start a new consultation to document a health concern. It will appear here once you\'ve sent it to your doctor.' : 'Try selecting a different filter.') + '</p>' +
         (list.length === 0 ? '<button class="btn btn-primary" onclick="createNewConsultation()">+ New Consultation</button>' : '') +
       '</div>';
     return;
   }
 
   var wrapClass = view === 'list' ? 'sickness-card-list' : 'sickness-grid';
-  container.innerHTML = '<div class="' + wrapClass + '">' + filtered.map(function (t) {
+  container.innerHTML = '<div class="' + wrapClass + '">' + filtered.map(function(t) {
     return buildSicknessCard(t);
   }).join('') + '</div>';
 }
@@ -332,30 +377,56 @@ function buildSicknessCard(t) {
   var icon        = { new:'🩺', pending:'🔍', ongoing:'📈', archived:'✅' }[t.status] || '🩺';
   var date        = t.createdAt ? new Date(t.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '';
   var checkins    = (t.checkins || []).length;
-  var lastSev     = checkins ? (t.checkins[t.checkins.length-1].severity) : null;
+  var lastSev     = checkins ? t.checkins[t.checkins.length - 1].severity : null;
   var sevColor    = lastSev !== null ? (lastSev >= 7 ? '#EF4444' : lastSev >= 4 ? '#F59E0B' : '#10B981') : 'var(--border-2)';
-  var subtitle    = t.diagResult && t.doctorReview && t.doctorReview.confirmed
-    ? t.diagResult.diagnoses[0].name
-    : t.diagResult
-      ? 'AI summary ready — awaiting doctor'
-      : t.phase === 'chat' ? 'Interview in progress…'
-      : 'Pre-consultation not started';
+  var subtitle    = t.status === 'archived' && t.resolvedReason
+    ? t.resolvedReason
+    : t.diagResult && t.doctorReview && t.doctorReview.confirmed
+      ? t.diagResult.diagnoses[0].name
+      : t.diagResult
+        ? 'AI summary ready — awaiting doctor'
+        : 'Sent to doctor — awaiting review';
+
+  // "Feeling better" button shown on new, pending, and ongoing threads
+  var canResolve = t.status === 'new' || t.status === 'pending' || t.status === 'ongoing';
+  var resolveBtn = canResolve
+    ? '<button onclick="event.stopPropagation();markHealthy(\'' + t.id + '\')" ' +
+        'style="display:flex;align-items:center;gap:4px;background:none;border:1.5px solid #BBF7D0;' +
+        'color:#15803D;border-radius:var(--r-full);padding:3px 10px;font-size:.72rem;font-weight:600;' +
+        'cursor:pointer;font-family:var(--font);white-space:nowrap;transition:background .12s;" ' +
+        'onmouseover="this.style.background=\'#F0FDF4\'" onmouseout="this.style.background=\'none\'" ' +
+        'title="Mark as resolved — feeling better">✓ Feeling better</button>'
+    : '';
 
   return '<div class="sickness-card status-' + t.status + '" onclick="openThread(\'' + t.id + '\')">' +
     '<div class="flex items-center justify-between mb-8">' +
-      '<div class="flex items-center gap-8">' +
-        '<span style="font-size:1.3rem">' + icon + '</span>' +
-        '<span style="font-size:.9rem;font-weight:600;color:var(--text)">' + escapeHtml(t.title || 'New Consultation') + '</span>' +
+      '<div class="flex items-center gap-8" style="min-width:0">' +
+        '<span style="font-size:1.3rem;flex-shrink:0">' + icon + '</span>' +
+        '<span style="font-size:.875rem;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHtml(t.title || 'Consultation') + '</span>' +
       '</div>' +
-      '<span class="badge ' + statusCls + '" style="flex-shrink:0">' + statusLabel + '</span>' +
+      '<span class="badge ' + statusCls + '" style="flex-shrink:0;margin-left:8px">' + statusLabel + '</span>' +
     '</div>' +
     '<p style="font-size:.8rem;color:var(--text-2);margin-bottom:10px">' + escapeHtml(subtitle) + '</p>' +
     '<div class="flex items-center justify-between">' +
-      '<span style="font-size:.72rem;color:var(--muted)">' + date + (checkins ? ' · ' + checkins + ' check-in' + (checkins!==1?'s':'') : '') + '</span>' +
-      '<span style="font-size:.75rem;color:var(--muted)">›</span>' +
+      '<span style="font-size:.72rem;color:var(--muted)">' + date + (checkins ? ' · ' + checkins + ' check-in' + (checkins !== 1 ? 's' : '') : '') + '</span>' +
+      resolveBtn +
     '</div>' +
-    (lastSev !== null ? '<div class="severity-bar-mini"><div class="severity-bar-mini-fill" style="width:' + (lastSev*10) + '%;background:' + sevColor + '"></div></div>' : '') +
+    (lastSev !== null ? '<div class="severity-bar-mini"><div class="severity-bar-mini-fill" style="width:' + (lastSev * 10) + '%;background:' + sevColor + '"></div></div>' : '') +
   '</div>';
+}
+
+function markHealthy(id) {
+  var ptId = _p.Session.id;
+  var list = getConsultations(ptId);
+  var t    = list.find(function(c) { return c.id === id; });
+  if (!t) return;
+  t.status     = 'archived';
+  t.resolvedAt = new Date().toISOString();
+  t.resolvedReason = 'Patient marked as feeling better';
+  saveConsultations(ptId, list);
+  _p.Audit.log('thread_resolved_by_patient', ptId, { id: id });
+  renderHome();
+  showToast('✓ Marked as resolved — glad you\'re feeling better!');
 }
 
 function filterSickness(filter, btn) {
@@ -417,6 +488,12 @@ function saveActiveThread() {
 }
 
 function createNewConsultation() {
+  // If a draft (unsubmitted interview) already exists, resume it rather than create a second
+  var existing = getConsultations(_p.Session.id).find(function(t) { return !isSubmitted(t); });
+  if (existing) {
+    openThread(existing.id);
+    return;
+  }
   _activeThread = {
     id: generateThreadId(), title: 'New Consultation',
     status: 'new', phase: 'consent', createdAt: new Date().toISOString(),

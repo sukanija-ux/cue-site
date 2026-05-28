@@ -681,7 +681,7 @@ function buildPreconsultExpanded() {
   var dr = _activeThread.diagResult;
   return '<div class="card" style="font-size:.82rem">' +
     '<div class="hr-section-label" style="margin-bottom:8px">Symptoms reported</div>' +
-    dr.symptoms.map(function(s){
+    (dr.symptoms || []).map(function(s){
       return '<div class="info-row"><span class="info-label">' + s.label + '</span><span class="info-val">' + s.duration + '</span></div>';
     }).join('') +
     '<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">' +

@@ -733,7 +733,7 @@ function buildTrackingBody(locked) {
   if (locked) return '<div class="stage-locked-body">🔒 Available after doctor confirms</div>';
   var tpl = document.getElementById('tpl-tracking');
   var html = tpl ? tpl.innerHTML : '';
-  setTimeout(function() { renderTrackingContent(); renderChart(); }, 100);
+  setTimeout(function() { renderTrackingContent(); renderChart(); restoreCallSchedule(); }, 100);
   return html;
 }
 
@@ -1501,3 +1501,262 @@ function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt
 function setText(id,val){ var el=document.getElementById(id);if(el)el.textContent=val; }
 function showToast(msg){ var t=document.getElementById('toast');if(!t)return;t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2500); }
 function filterTimeline(val){ renderTimeline(val); }
+
+// ═══════════════════════════════════════════════════════════════
+// CALL CHECK-IN — shared state
+// ═══════════════════════════════════════════════════════════════
+var _callAnswers  = [];
+var _callStep     = 0;
+var _callQs       = [];
+var _callRecording = false;
+var _activeCallMode = null; // 'ocm' | 'icm'
+
+function _getCallQs() {
+  if (!_activeThread) return [];
+  var stored = _p.Store.get(_p.Session.id);
+  var condKey = (_activeThread.diagResult &&
+    _activeThread.diagResult.diagnoses &&
+    _activeThread.diagResult.diagnoses[0] &&
+    _activeThread.diagResult.diagnoses[0].conditionKey) || 'default';
+  return (_p.CHECKIN_QUESTIONS[condKey] || _p.CHECKIN_QUESTIONS.default).slice();
+}
+
+// ── Daily call schedule ───────────────────────────────────────
+function toggleDailyCall(enabled) {
+  var setup  = document.getElementById('dailyCallSetup');
+  var status = document.getElementById('dailyCallStatus');
+  if (!setup || !status) return;
+  if (enabled) {
+    setup.style.display  = '';
+    status.style.display = 'none';
+  } else {
+    setup.style.display  = 'none';
+    status.style.display = 'none';
+    if (_activeThread) { _activeThread.callSchedule = null; saveActiveThread(); }
+  }
+}
+
+function saveDailyCall() {
+  var phone = document.getElementById('callPhone').value.trim();
+  var time  = document.getElementById('callTime').value;
+  if (!phone) { alert('Please enter a phone number.'); return; }
+  if (_activeThread) {
+    _activeThread.callSchedule = { enabled: true, phone: phone, time: time };
+    saveActiveThread();
+  }
+  document.getElementById('dailyCallSetup').style.display  = 'none';
+  document.getElementById('dailyCallStatus').style.display = '';
+  document.querySelector('.daily-call-phone').textContent = phone;
+  document.querySelector('.daily-call-time').textContent  = formatCallTime(time);
+  showToast('✓ Daily call scheduled at ' + formatCallTime(time));
+}
+
+function editDailyCall() {
+  document.getElementById('dailyCallSetup').style.display  = '';
+  document.getElementById('dailyCallStatus').style.display = 'none';
+  var sch = _activeThread && _activeThread.callSchedule;
+  if (sch) {
+    var ph = document.getElementById('callPhone'); if (ph) ph.value = sch.phone;
+    var ct = document.getElementById('callTime');  if (ct) ct.value = sch.time;
+  }
+}
+
+function formatCallTime(t) {
+  var parts = t.split(':');
+  var h = parseInt(parts[0], 10);
+  return (h % 12 || 12) + ':' + parts[1] + ' ' + (h < 12 ? 'AM' : 'PM');
+}
+
+// Re-render daily call card when tracking section loads
+function restoreCallSchedule() {
+  var sch = _activeThread && _activeThread.callSchedule;
+  var toggle = document.getElementById('dailyCallToggle');
+  if (!toggle) return;
+  if (sch && sch.enabled) {
+    toggle.checked = true;
+    document.getElementById('dailyCallSetup').style.display  = 'none';
+    document.getElementById('dailyCallStatus').style.display = '';
+    var pp = document.querySelector('.daily-call-phone'); if (pp) pp.textContent = sch.phone;
+    var pt = document.querySelector('.daily-call-time');  if (pt) pt.textContent = formatCallTime(sch.time);
+  }
+}
+
+// ── Outbound call (bot → patient) ────────────────────────────
+function openOutboundCallModal() {
+  _activeCallMode = 'ocm';
+  _callAnswers = []; _callStep = 0;
+  _callQs = _getCallQs();
+  var sch = _activeThread && _activeThread.callSchedule;
+  var phone = (sch && sch.phone) || (document.getElementById('callPhone') && document.getElementById('callPhone').value.trim()) || '…';
+  document.getElementById('ocm-phone-display').textContent = phone;
+  // reset state
+  document.getElementById('ocm-ringing').style.display    = '';
+  document.getElementById('ocm-connected').style.display  = 'none';
+  document.getElementById('ocm-chat').innerHTML = '';
+  document.getElementById('ocm-submit-row').style.display = 'none';
+  document.getElementById('outboundCallModal').classList.add('open');
+}
+
+function declineOutboundCall() {
+  document.getElementById('outboundCallModal').classList.remove('open');
+}
+
+function answerOutboundCall() {
+  document.getElementById('ocm-ringing').style.display   = 'none';
+  document.getElementById('ocm-connected').style.display = '';
+  _startCallInterview('ocm');
+}
+
+function closeOutboundCallModal() {
+  document.getElementById('outboundCallModal').classList.remove('open');
+}
+
+// ── Inbound call info + modal ─────────────────────────────────
+function showInboundCallInfo() {
+  document.getElementById('inboundInfoModal').classList.add('open');
+}
+
+function openInboundCallModal() {
+  document.getElementById('inboundInfoModal').classList.remove('open');
+  // reset
+  document.getElementById('icm-verify').style.display    = '';
+  document.getElementById('icm-connected').style.display = 'none';
+  document.getElementById('icm-chat').innerHTML = '';
+  document.getElementById('icm-submit-row').style.display = 'none';
+  ['icm-name','icm-address','icm-dob'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('inboundCallModal').classList.add('open');
+}
+
+function closeInboundCallModal() {
+  document.getElementById('inboundCallModal').classList.remove('open');
+}
+
+function verifyInboundIdentity() {
+  var name    = document.getElementById('icm-name').value.trim();
+  var address = document.getElementById('icm-address').value.trim();
+  var dob     = document.getElementById('icm-dob').value;
+  if (!name || !address || !dob) {
+    alert('Please fill in your name, address and date of birth to continue.');
+    return;
+  }
+  // In a real system: verify against stored profile. For demo, accept anything non-empty.
+  _activeCallMode = 'icm';
+  _callAnswers = []; _callStep = 0;
+  _callQs = _getCallQs();
+  document.getElementById('icm-verify').style.display    = 'none';
+  document.getElementById('icm-connected').style.display = '';
+  _startCallInterview('icm');
+}
+
+// ── Shared call interview engine ──────────────────────────────
+function _startCallInterview(mode) {
+  _callAnswers = []; _callStep = 0;
+  _updateCallProgress(mode);
+  _addCallBotBubble(mode, _callQs[0] || 'How are you feeling today?');
+}
+
+function _addCallBotBubble(mode, text) {
+  var chat = document.getElementById(mode + '-chat');
+  if (!chat) return;
+  // typing indicator
+  var typing = document.createElement('div');
+  typing.className = 'chat-row'; typing.id = mode + '-typing';
+  typing.innerHTML = '<div class="avatar ai">🤖</div><div class="bubble ai typing"><div class="typing-dots"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>';
+  chat.appendChild(typing); chat.scrollTop = chat.scrollHeight;
+  setTimeout(function() {
+    var ti = document.getElementById(mode + '-typing'); if (ti) ti.remove();
+    var wrap = document.createElement('div');
+    wrap.className = 'chat-row';
+    wrap.innerHTML = '<div class="avatar ai">🤖</div><div class="bubble ai">' + escapeHtml(text) + '</div>';
+    chat.appendChild(wrap); chat.scrollTop = chat.scrollHeight;
+  }, 500);
+}
+
+function _addCallUserBubble(mode, text) {
+  var chat = document.getElementById(mode + '-chat');
+  if (!chat) return;
+  var wrap = document.createElement('div');
+  wrap.className = 'chat-row user';
+  wrap.innerHTML = '<div class="bubble user">' + escapeHtml(text) + '</div><div class="avatar user">👤</div>';
+  chat.appendChild(wrap); chat.scrollTop = chat.scrollHeight;
+}
+
+function _updateCallProgress(mode) {
+  var pct = _callQs.length > 0 ? Math.round(_callStep / _callQs.length * 100) : 0;
+  var bar = document.getElementById(mode + '-progress'); if (bar) bar.style.width = pct + '%';
+  var lbl = document.getElementById(mode + '-progress-label'); if (lbl) lbl.textContent = _callStep + ' / ' + _callQs.length;
+}
+
+function sendCallAnswer(mode) {
+  var input = document.getElementById(mode + '-input');
+  var val = input ? input.value.trim() : '';
+  if (!val) return;
+  input.value = '';
+  _addCallUserBubble(mode, val);
+  _callAnswers.push({ question: _callQs[_callStep] || '', answer: val });
+  _callStep++;
+  _updateCallProgress(mode);
+  if (_callStep < _callQs.length) {
+    setTimeout(function() { _addCallBotBubble(mode, _callQs[_callStep]); }, 500);
+  } else {
+    setTimeout(function() {
+      _addCallBotBubble(mode, 'Thank you — that\'s all I need. Please rate your overall discomfort and save.');
+      var row = document.getElementById(mode + '-submit-row');
+      var bar = document.getElementById(mode + '-input-bar');
+      if (row) row.style.display = '';
+      if (bar) bar.style.display = 'none';
+    }, 500);
+  }
+}
+
+function toggleCallRecording(mode) {
+  if (_callRecording) {
+    _callRecording = false;
+    var btn = document.getElementById(mode + '-record-btn');
+    var wf  = document.getElementById(mode + '-waveform');
+    if (btn) { btn.classList.remove('recording'); btn.textContent = '🎙️'; }
+    if (wf)  wf.classList.add('idle');
+    // Simulate transcription result
+    setTimeout(function() {
+      var input = document.getElementById(mode + '-input');
+      if (input) input.value = '[Voice response recorded]';
+    }, 300);
+  } else {
+    _callRecording = true;
+    var btn = document.getElementById(mode + '-record-btn');
+    var wf  = document.getElementById(mode + '-waveform');
+    if (btn) { btn.classList.add('recording'); btn.textContent = '⏹'; }
+    if (wf)  wf.classList.remove('idle');
+    setTimeout(function() { if (_callRecording) toggleCallRecording(mode); }, 5000);
+  }
+}
+
+function submitCallLog(mode) {
+  var severity = +(document.getElementById(mode + '-severity').value || 3);
+  var sympSet  = new Set();
+  _callAnswers.forEach(function(a) {
+    var t = a.answer.toLowerCase();
+    if (t.includes('head') || t.includes('migrain')) sympSet.add('Headache');
+    if (t.includes('naus') || t.includes('sick'))    sympSet.add('Nausea');
+    if (t.includes('fever') || t.includes('temp'))   sympSet.add('Fever');
+    if (t.includes('tired') || t.includes('fatigu')) sympSet.add('Fatigue');
+    if (t.includes('pain') || t.includes('ache'))    sympSet.add('Pain');
+  });
+  var symptoms = sympSet.size > 0 ? Array.from(sympSet) : ['Voice check-in'];
+  var entry = {
+    id: 'CI-' + Date.now(), date: Date.now(), severity: severity,
+    symptoms: symptoms,
+    notes: _callAnswers.map(function(a){ return a.question + '\n→ ' + a.answer; }).join('\n\n') || 'Voice check-in',
+    lang: 'en', outlier: severity >= 8,
+    source: mode === 'ocm' ? 'outbound_call' : 'inbound_call',
+  };
+  if (_activeThread) _activeThread.checkins = (_activeThread.checkins || []).concat(entry);
+  _p.Audit.log('checkin_logged', _p.Session.id, { severity: severity, source: entry.source });
+  saveActiveThread();
+  if (mode === 'ocm') closeOutboundCallModal();
+  else                closeInboundCallModal();
+  renderTimeline();
+  setTimeout(renderChart, 100);
+  showToast('✓ Check-in saved' + (entry.outlier ? ' — doctor notified' : ''));
+  if (entry.outlier) setTimeout(function(){ alert('⚠️ High severity detected. Your doctor has been notified.'); }, 300);
+}

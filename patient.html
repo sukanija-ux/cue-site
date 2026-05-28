@@ -206,6 +206,71 @@
   .severity-bar-mini-fill {
     height: 100%; border-radius: 4px; transition: width .3s;
   }
+
+  /* ── Check-in method buttons ──────────────────────────────── */
+  .checkin-methods {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+  }
+  .checkin-method-btn {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 16px 10px; border-radius: var(--r-lg);
+    background: var(--surface); border: 1.5px solid var(--border);
+    cursor: pointer; transition: all .15s; font-family: var(--font);
+  }
+  .checkin-method-btn:hover {
+    border-color: var(--accent-mid); background: var(--accent-bg);
+    transform: translateY(-1px); box-shadow: var(--shadow-md);
+  }
+  .checkin-method-btn.call-btn {
+    border-color: var(--green-border); background: var(--green-bg);
+  }
+  .checkin-method-btn.call-btn:hover {
+    border-color: var(--green); box-shadow: 0 4px 14px var(--green-bg);
+  }
+  .checkin-method-icon { font-size: 1.6rem; }
+  .checkin-method-label {
+    font-size: .75rem; font-weight: 600; color: var(--text-2); text-align: center; line-height: 1.3;
+  }
+
+  /* ── Toggle switch ────────────────────────────────────────── */
+  .toggle-switch { position: relative; display: inline-block; cursor: pointer; }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .toggle-track {
+    display: block; width: 40px; height: 22px; border-radius: 11px;
+    background: var(--surface-3); border: 1px solid var(--border);
+    transition: background .2s;
+  }
+  .toggle-thumb {
+    display: block; width: 16px; height: 16px; border-radius: 50%;
+    background: white; position: absolute; top: 3px; left: 3px;
+    transition: transform .2s; box-shadow: var(--shadow-sm);
+  }
+  .toggle-switch input:checked + .toggle-track { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 8px rgba(124,92,252,.3); }
+  .toggle-switch input:checked + .toggle-track .toggle-thumb { transform: translateX(18px); }
+
+  /* ── Call avatar ──────────────────────────────────────────── */
+  .call-avatar {
+    width: 72px; height: 72px; border-radius: 50%;
+    background: var(--surface-2); border: 3px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2rem;
+  }
+  .call-pulse { animation: call-ring 1.2s ease-out infinite; }
+  @keyframes call-ring {
+    0%   { box-shadow: 0 0 0 0 rgba(124,92,252,.5); }
+    70%  { box-shadow: 0 0 0 16px rgba(124,92,252,0); }
+    100% { box-shadow: 0 0 0 0 rgba(124,92,252,0); }
+  }
+
+  /* ── Call action buttons (answer / decline) ───────────────── */
+  .call-action-btn {
+    width: 56px; height: 56px; border-radius: 50%; border: none;
+    font-size: 1.4rem; cursor: pointer; transition: transform .12s, box-shadow .12s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .call-action-btn:hover { transform: scale(1.08); }
+  .call-action-btn.answer { background: var(--green); color: white; box-shadow: 0 4px 14px var(--green-bg); }
+  .call-action-btn.decline { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
   </style>
 </head>
 <body>
@@ -744,12 +809,73 @@
 <!-- Tracking template -->
 <template id="tpl-tracking">
   <div>
-    <div class="flex items-center justify-between mb-16">
-      <div>
-        <p class="text-sm" style="color:var(--muted)">Log check-ins to track your recovery. Your doctor monitors in real time.</p>
-      </div>
-      <button class="btn btn-primary btn-sm" onclick="openLogModal()">+ Log now</button>
+
+    <!-- ── Check-in method row ───────────────────────────────── -->
+    <div class="checkin-methods mb-20">
+      <button class="checkin-method-btn" onclick="openLogModal()" title="Log symptoms on the platform">
+        <span class="checkin-method-icon">💬</span>
+        <span class="checkin-method-label">Log on platform</span>
+      </button>
+      <button class="checkin-method-btn call-btn" onclick="openOutboundCallModal()" title="Have the bot call you now">
+        <span class="checkin-method-icon">📞</span>
+        <span class="checkin-method-label">Call me now</span>
+      </button>
+      <button class="checkin-method-btn" onclick="showInboundCallInfo()" title="Call the bot yourself">
+        <span class="checkin-method-icon">☎️</span>
+        <span class="checkin-method-label">Call the bot</span>
+      </button>
     </div>
+
+    <!-- ── Daily call enrollment ─────────────────────────────── -->
+    <div class="card mb-16 daily-call-card" id="dailyCallCard">
+      <div class="flex items-center justify-between mb-12">
+        <div class="flex items-center gap-10">
+          <span style="font-size:1.3rem">🗓️</span>
+          <div>
+            <div class="card-title">Daily call check-ins</div>
+            <div class="card-sub">Bot calls you at the same time every day</div>
+          </div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="dailyCallToggle" onchange="toggleDailyCall(this.checked)">
+          <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        </label>
+      </div>
+      <div id="dailyCallSetup" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div class="form-group">
+            <label class="form-label">Phone number</label>
+            <input class="form-input" type="tel" id="callPhone" placeholder="+44 7700 900000" style="font-size:.85rem">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Preferred time</label>
+            <select class="form-select" id="callTime" style="font-size:.85rem">
+              <option value="08:00">8:00 AM</option>
+              <option value="09:00" selected>9:00 AM</option>
+              <option value="10:00">10:00 AM</option>
+              <option value="12:00">12:00 PM</option>
+              <option value="14:00">2:00 PM</option>
+              <option value="17:00">5:00 PM</option>
+              <option value="19:00">7:00 PM</option>
+              <option value="21:00">9:00 PM</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="saveDailyCall()" style="width:100%">Save schedule</button>
+      </div>
+      <div id="dailyCallStatus" style="display:none">
+        <div class="alert alert-success" style="font-size:.82rem;margin-bottom:10px">
+          <span>✓</span>
+          <p>Bot will call <strong class="daily-call-phone"></strong> daily at <strong class="daily-call-time"></strong></p>
+        </div>
+        <div class="flex gap-8">
+          <button class="btn btn-ghost btn-sm" onclick="editDailyCall()">Edit</button>
+          <button class="btn btn-ghost btn-sm" onclick="openOutboundCallModal()" style="color:var(--accent)">📞 Call me now instead</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Stats ─────────────────────────────────────────────── -->
     <div class="stat-row mb-16" style="grid-template-columns:repeat(3,1fr)">
       <div class="stat-card">
         <div class="stat-val track-days">0</div>
@@ -765,6 +891,8 @@
         <div class="stat-label">Next check-in</div>
       </div>
     </div>
+
+    <!-- ── Entries timeline ──────────────────────────────────── -->
     <div class="card mb-12" style="padding:0;overflow:hidden">
       <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid var(--border);background:var(--surface-2)">
         <div class="card-title" style="margin:0">Entries</div>
@@ -835,9 +963,126 @@
   </div>
 </div>
 
+<!-- ── Outbound call modal (bot calls patient) ── -->
+<div class="modal-overlay" id="outboundCallModal">
+  <div class="modal" style="max-width:380px;text-align:center">
+    <div id="ocm-ringing">
+      <div class="call-avatar call-pulse" style="margin:0 auto 20px">🤖</div>
+      <h3 style="margin-bottom:6px">Calling you…</h3>
+      <p class="text-sm mb-4" style="color:var(--muted)">Cue bot is dialling your number</p>
+      <p class="text-sm font-mono mb-24" id="ocm-phone-display" style="color:var(--accent)"></p>
+      <div class="flex justify-center gap-16">
+        <button class="call-action-btn decline" onclick="declineOutboundCall()">✕</button>
+        <button class="call-action-btn answer" onclick="answerOutboundCall()">✓</button>
+      </div>
+      <p class="text-xs mt-16" style="color:var(--subtle)">Tap ✓ to simulate answering</p>
+    </div>
+    <div id="ocm-connected" style="display:none">
+      <div class="call-avatar" style="margin:0 auto 16px;border-color:var(--green);box-shadow:0 0 0 4px var(--green-bg)">🤖</div>
+      <div class="badge badge-green mb-16" style="margin:0 auto 16px;display:inline-flex">● Connected</div>
+      <div class="flex items-center justify-between mb-4">
+        <span class="text-xs" style="color:var(--muted)">Progress</span>
+        <span class="text-xs font-mono" id="ocm-progress-label">0 / 5</span>
+      </div>
+      <div class="progress-track mb-14"><div class="progress-fill" id="ocm-progress" style="width:0%"></div></div>
+      <div id="ocm-chat" style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:12px;text-align:left"></div>
+      <div class="chat-input-bar" id="ocm-input-bar">
+        <button class="record-btn" id="ocm-record-btn" onclick="toggleCallRecording('ocm')">🎙️</button>
+        <div class="waveform idle" id="ocm-waveform">
+          <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+        </div>
+        <input type="text" id="ocm-input" placeholder="Say or type your answer…" onkeydown="if(event.key==='Enter')sendCallAnswer('ocm')"/>
+        <button class="btn btn-primary btn-sm" onclick="sendCallAnswer('ocm')">Send</button>
+      </div>
+      <div id="ocm-submit-row" style="display:none;margin-top:12px">
+        <div class="flex items-center gap-12 mb-10">
+          <span class="text-sm font-600" style="min-width:100px;text-align:left">Severity</span>
+          <input type="range" class="slider" min="0" max="10" value="3" id="ocm-severity" oninput="document.getElementById('ocm-sev-val').textContent=this.value">
+          <span class="slider-val" id="ocm-sev-val">3</span>
+        </div>
+        <div class="flex gap-8">
+          <button class="btn btn-ghost" onclick="closeOutboundCallModal()">Cancel</button>
+          <button class="btn btn-primary flex-1" onclick="submitCallLog('ocm')">Save &amp; hang up 📵</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Inbound call modal (patient calls bot) ── -->
+<div class="modal-overlay" id="inboundCallModal">
+  <div class="modal" style="max-width:380px;text-align:center">
+    <div id="icm-verify" >
+      <div class="call-avatar" style="margin:0 auto 16px;border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-bg)">🤖</div>
+      <h3 style="margin-bottom:6px">Identity check</h3>
+      <p class="text-sm mb-20" style="color:var(--muted)">For your security the bot needs to verify who you are before starting the check-in.</p>
+      <div class="stack-10" style="text-align:left">
+        <div class="form-group">
+          <label class="form-label">Full name</label>
+          <input class="form-input" id="icm-name" placeholder="As it appears on your record">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Home address (first line)</label>
+          <input class="form-input" id="icm-address" placeholder="e.g. 42 High Street">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Date of birth</label>
+          <input class="form-input" type="date" id="icm-dob">
+        </div>
+      </div>
+      <button class="btn btn-primary mt-20" style="width:100%" onclick="verifyInboundIdentity()">Verify &amp; connect →</button>
+      <button class="btn btn-ghost btn-sm mt-8" style="width:100%" onclick="closeInboundCallModal()">Cancel</button>
+    </div>
+    <div id="icm-connected" style="display:none">
+      <div class="call-avatar" style="margin:0 auto 16px;border-color:var(--green);box-shadow:0 0 0 4px var(--green-bg)">🤖</div>
+      <div class="badge badge-green" style="display:inline-flex;margin-bottom:16px">● Verified &amp; connected</div>
+      <div class="flex items-center justify-between mb-4">
+        <span class="text-xs" style="color:var(--muted)">Progress</span>
+        <span class="text-xs font-mono" id="icm-progress-label">0 / 5</span>
+      </div>
+      <div class="progress-track mb-14"><div class="progress-fill" id="icm-progress" style="width:0%"></div></div>
+      <div id="icm-chat" style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:12px;text-align:left"></div>
+      <div class="chat-input-bar" id="icm-input-bar">
+        <button class="record-btn" id="icm-record-btn" onclick="toggleCallRecording('icm')">🎙️</button>
+        <div class="waveform idle" id="icm-waveform">
+          <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+        </div>
+        <input type="text" id="icm-input" placeholder="Say or type your answer…" onkeydown="if(event.key==='Enter')sendCallAnswer('icm')"/>
+        <button class="btn btn-primary btn-sm" onclick="sendCallAnswer('icm')">Send</button>
+      </div>
+      <div id="icm-submit-row" style="display:none;margin-top:12px">
+        <div class="flex items-center gap-12 mb-10">
+          <span class="text-sm font-600" style="min-width:100px;text-align:left">Severity</span>
+          <input type="range" class="slider" min="0" max="10" value="3" id="icm-severity" oninput="document.getElementById('icm-sev-val').textContent=this.value">
+          <span class="slider-val" id="icm-sev-val">3</span>
+        </div>
+        <div class="flex gap-8">
+          <button class="btn btn-ghost" onclick="closeInboundCallModal()">Cancel</button>
+          <button class="btn btn-primary flex-1" onclick="submitCallLog('icm')">Save &amp; hang up 📵</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Inbound info modal (show bot number) ── -->
+<div class="modal-overlay" id="inboundInfoModal">
+  <div class="modal" style="max-width:360px;text-align:center">
+    <div style="font-size:2.5rem;margin-bottom:12px">☎️</div>
+    <h3 style="margin-bottom:8px">Call the Cue bot</h3>
+    <p class="text-sm mb-20" style="color:var(--muted)">Call this number any time to log a symptom check-in. The bot will ask for your name, address and date of birth before starting.</p>
+    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-lg);padding:18px 24px;margin-bottom:20px">
+      <div style="font-size:1.5rem;font-weight:700;letter-spacing:.05em;color:var(--text);font-family:var(--mono)">+44 800 000 CUE</div>
+      <div style="font-size:.75rem;color:var(--muted);margin-top:4px">Free from UK mobiles &amp; landlines</div>
+    </div>
+    <button class="btn btn-primary mb-8" style="width:100%" onclick="openInboundCallModal()">Simulate a call →</button>
+    <button class="btn btn-ghost" style="width:100%" onclick="document.getElementById('inboundInfoModal').classList.remove('open')">Close</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
-<script src="app.js?v=17"></script>
-<script src="patient.js?v=17"></script>
+<script src="app.js?v=18"></script>
+<script src="patient.js?v=18"></script>
 </body>
 </html>

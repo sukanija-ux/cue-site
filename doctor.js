@@ -5,11 +5,64 @@
 
 const _d = window.CUE;
 
-let activePatientId = null;
-let selectedUrgency = 'medium';
+let activePatientId  = null;
+let activeThreadId   = null;   // set when reviewing a real thread
+let selectedUrgency  = 'medium';
 let calYear  = new Date().getFullYear();
 let calMonth = new Date().getMonth();
 let calSelectedDay = null;
+
+// ── Real consultation data from localStorage ──────────────────
+function getRealConsultations() {
+  // Returns array of { ptId, thread } for all submitted, unconfirmed threads
+  var store = {};
+  try { store = JSON.parse(localStorage.getItem('cue_store') || '{}'); } catch(e) {}
+  var results = [];
+  Object.keys(store).forEach(function(ptId) {
+    var consultations = (store[ptId] && store[ptId].consultations) || [];
+    consultations.forEach(function(t) {
+      if (t.submittedAt) {  // only submitted threads appear in the queue
+        results.push({ ptId: ptId, thread: t });
+      }
+    });
+  });
+  // Newest first
+  results.sort(function(a,b){ return new Date(b.thread.submittedAt) - new Date(a.thread.submittedAt); });
+  return results;
+}
+
+function confirmRealThread(ptId, threadId) {
+  // Write doctorReview.confirmed = true back into cue_store
+  var store = {};
+  try { store = JSON.parse(localStorage.getItem('cue_store') || '{}'); } catch(e) {}
+  if (!store[ptId] || !store[ptId].consultations) return false;
+  var t = store[ptId].consultations.find(function(x){ return x.id === threadId; });
+  if (!t) return false;
+  t.doctorReview = t.doctorReview || {};
+  t.doctorReview.confirmed    = true;
+  t.doctorReview.confirmedAt  = new Date().toISOString();
+  t.doctorReview.confirmedBy  = _d.Session.id;
+  t.status = 'ongoing';
+  try { localStorage.setItem('cue_store', JSON.stringify(store)); } catch(e) {}
+  return true;
+}
+
+function overrideRealThread(ptId, threadId, diagName, notes) {
+  var store = {};
+  try { store = JSON.parse(localStorage.getItem('cue_store') || '{}'); } catch(e) {}
+  if (!store[ptId] || !store[ptId].consultations) return false;
+  var t = store[ptId].consultations.find(function(x){ return x.id === threadId; });
+  if (!t) return false;
+  t.doctorReview = t.doctorReview || {};
+  t.doctorReview.confirmed    = true;
+  t.doctorReview.confirmedAt  = new Date().toISOString();
+  t.doctorReview.confirmedBy  = _d.Session.id;
+  t.doctorReview.overriddenDx = diagName;
+  t.doctorReview.notes        = notes;
+  t.status = 'ongoing';
+  try { localStorage.setItem('cue_store', JSON.stringify(store)); } catch(e) {}
+  return true;
+}
 
 document.addEventListener('DOMContentLoaded', function() {
   _d.Session.init();
@@ -20,7 +73,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // ── Counts ────────────────────────────────────────────────────
 function updateCounts() {
-  var pending  = MOCK_PATIENTS.filter(function(p){ return !p.diagnosis.confirmed; }).length;
+  var mockPending  = MOCK_PATIENTS.filter(function(p){ return !p.diagnosis.confirmed; }).length;
+  var realPending  = getRealConsultations().filter(function(r){ return !r.thread.doctorReview || !r.thread.doctorReview.confirmed; }).length;
+  var pending  = mockPending + realPending;
   var outliers = MOCK_PATIENTS.filter(function(p){ return p.outlier; }).length;
   document.getElementById('queueCount').textContent  = pending;
   document.getElementById('alertCount').textContent  = outliers;
@@ -31,16 +86,40 @@ function updateCounts() {
 // ── Patient list (sidebar) ────────────────────────────────────
 function renderPatientList(query) {
   query = (query || '').toLowerCase();
+
+  // Real patients from localStorage — one row per patient (latest thread)
+  var realRows = getRealConsultations().reduce(function(acc, r) {
+    if (!acc.find(function(x){ return x.ptId === r.ptId; })) acc.push(r);
+    return acc;
+  }, []);
+
+  var realHtml = realRows.filter(function(r){
+    return !query || r.ptId.toLowerCase().includes(query) || (r.thread.title||'').toLowerCase().includes(query);
+  }).map(function(r) {
+    var t   = r.thread;
+    var confirmed = t.doctorReview && t.doctorReview.confirmed;
+    var badge = confirmed ? '<span class="badge badge-teal" style="font-size:.6rem">Confirmed</span>'
+                          : '<span class="badge badge-amber" style="font-size:.6rem">Pending</span>';
+    var active = (activePatientId === r.ptId && activeThreadId === t.id) ? 'active' : '';
+    return '<div class="pt-row ' + active + '" onclick="selectRealThread(\'' + r.ptId + '\',\'' + t.id + '\')">' +
+      '<div class="flex items-center justify-between mb-4">' +
+        '<span class="pt-row-id">' + r.ptId + '</span>' + badge +
+      '</div>' +
+      '<div class="pt-row-cond truncate">' + escapeHtml(t.title || 'Consultation') + '</div>' +
+      '<div class="text-xs mt-4" style="color:var(--subtle)">' + new Date(t.submittedAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) + '</div>' +
+    '</div>';
+  }).join('');
+
   var pts = query
     ? MOCK_PATIENTS.filter(function(p){ return p.id.toLowerCase().includes(query) || p.condition.toLowerCase().includes(query); })
     : MOCK_PATIENTS;
 
-  document.getElementById('patientList').innerHTML = pts.map(function(p) {
+  var mockHtml = pts.map(function(p) {
     var sev = p.currentSeverity;
     var bars = p.checkins.slice(-5).map(function(c) {
       return '<div class="spark-bar ' + (c.severity>=7?'high':'') + '" style="height:' + Math.max(3, c.severity/10*20) + 'px"></div>';
     }).join('');
-    return '<div class="pt-row ' + (p.id === activePatientId ? 'active' : '') + '" onclick="selectPatient(\'' + p.id + '\')">' +
+    return '<div class="pt-row ' + (p.id === activePatientId && !activeThreadId ? 'active' : '') + '" onclick="selectPatient(\'' + p.id + '\')">' +
       '<div class="flex items-center justify-between mb-4">' +
         '<span class="pt-row-id">' + p.id + '</span>' +
         (p.outlier ? '<span class="badge badge-red" style="font-size:.6rem">Alert</span>' :
@@ -53,12 +132,72 @@ function renderPatientList(query) {
       '</div>' +
     '</div>';
   }).join('');
+
+  // Real patients first with a divider if present
+  var separator = realRows.length && pts.length
+    ? '<div style="padding:6px 12px;font-size:.65rem;font-weight:600;color:var(--subtle);text-transform:uppercase;letter-spacing:.07em;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--surface-2);margin-top:4px">Demo patients</div>'
+    : '';
+  document.getElementById('patientList').innerHTML = realHtml + separator + mockHtml;
 }
 
 function filterPatientList(q) { renderPatientList(q); }
 
+// Select a real (localStorage) patient thread
+function selectRealThread(ptId, threadId) {
+  activePatientId = ptId;
+  activeThreadId  = threadId;
+  renderPatientList(document.getElementById('ptSearch').value);
+  renderRealThreadDetail(ptId, threadId);
+}
+
+function renderRealThreadDetail(ptId, threadId) {
+  var store = {};
+  try { store = JSON.parse(localStorage.getItem('cue_store') || '{}'); } catch(e) {}
+  var consultations = (store[ptId] && store[ptId].consultations) || [];
+  var t = consultations.find(function(x){ return x.id === threadId; });
+  if (!t) return;
+
+  var confirmed = t.doctorReview && t.doctorReview.confirmed;
+  var dx = (t.diagResult && t.diagResult.diagnoses && t.diagResult.diagnoses[0]) || null;
+  var dxName = dx ? dx.label : 'AI analysis pending';
+  var dxConf = dx ? (dx.confidence || 75) : 0;
+  var answers = (t.answers || []).slice(0, 6);
+  var checkins = t.checkins || [];
+
+  var answerRows = answers.length
+    ? answers.map(function(a){ return '<div class="info-row"><span class="info-label" style="font-size:.68rem">' + escapeHtml(a.cat||'Q') + '</span><span class="info-val text-sm">' + escapeHtml(a.text||a.answer||'—') + '</span></div>'; }).join('')
+    : '<p class="text-sm" style="color:var(--muted)">No answers recorded.</p>';
+
+  var sevChips = checkins.slice(-5).map(function(c){
+    return '<div style="text-align:center;padding:4px 8px;border-radius:6px;background:var(--surface-2);border:1px solid var(--border)">' +
+      '<div style="font-size:.58rem;color:var(--subtle)">' + new Date(c.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) + '</div>' +
+      '<div style="font-weight:700;font-size:.82rem;color:' + severityColor(c.severity) + '">' + c.severity + '</div>' +
+    '</div>';
+  }).join('');
+
+  document.getElementById('detailPanel').innerHTML =
+    '<div class="stack-12">' +
+      '<div>' +
+        '<div class="flex items-center gap-8 mb-6" style="flex-wrap:wrap">' +
+          '<span class="font-mono font-700 text-sm">' + ptId + '</span>' +
+          '<span class="badge badge-gray" style="font-size:.6rem">🔒 ID only</span>' +
+          (confirmed ? '<span class="badge badge-teal">✓ Confirmed</span>' : '<span class="badge badge-amber">⏳ Pending</span>') +
+        '</div>' +
+        '<div class="text-xs mb-12" style="color:var(--subtle)">Submitted ' + new Date(t.submittedAt).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) + '</div>' +
+      '</div>' +
+      (dx ? '<div class="dx-card primary mb-8">' +
+        '<div class="font-600 text-sm mb-4">' + escapeHtml(dxName) + '</div>' +
+        '<div class="flex items-center gap-8"><div class="conf-bar"><div class="conf-fill" style="width:' + dxConf + '%"></div></div><span class="text-xs" style="color:var(--muted)">' + dxConf + '%</span></div>' +
+      '</div>' : '<div class="card-sm mb-8"><p class="text-sm" style="color:var(--muted)">AI analysis not yet available.</p></div>') +
+      (checkins.length ? '<div class="mb-8"><div class="text-xs" style="color:var(--subtle);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Check-ins</div><div class="flex gap-6" style="flex-wrap:wrap">' + sevChips + '</div></div>' : '') +
+      '<div class="mb-8"><div class="text-xs" style="color:var(--subtle);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Interview answers</div>' + answerRows + '</div>' +
+      (!confirmed ? '<button class="btn btn-primary btn-sm" style="width:100%" onclick="openRealConfirmModal(\'' + ptId + '\',\'' + threadId + '\')">Review &amp; Confirm →</button>' : '<div class="alert alert-success" style="font-size:.78rem"><span>✓</span><p>Confirmed by <span class="font-mono">' + (t.doctorReview.confirmedBy||'—') + '</span></p></div>') +
+    '</div>';
+}
+
 function selectPatient(id) {
   activePatientId = id;
+  activeThreadId  = null;
   renderPatientList(document.getElementById('ptSearch').value);
   renderDetailPanel(id);
 }
@@ -129,11 +268,57 @@ function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 // ── Queue ─────────────────────────────────────────────────────
 function renderQueue(filter) {
   filter = filter || 'all';
+
+  // ── Real consultations from localStorage ──
+  var realConsults = getRealConsultations();
+  if (filter === 'pending')   realConsults = realConsults.filter(function(r){ return !r.thread.doctorReview || !r.thread.doctorReview.confirmed; });
+  if (filter === 'confirmed') realConsults = realConsults.filter(function(r){ return r.thread.doctorReview && r.thread.doctorReview.confirmed; });
+
+  var realQueueHtml = realConsults.map(function(r) {
+    var t         = r.thread;
+    var confirmed = t.doctorReview && t.doctorReview.confirmed;
+    var dx        = t.diagResult && t.diagResult.diagnoses && t.diagResult.diagnoses[0];
+    var dxName    = dx ? dx.label : 'Awaiting AI analysis';
+    var dxConf    = dx ? (dx.confidence || 75) : null;
+    var submitted = new Date(t.submittedAt).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    var borderColor = confirmed ? 'var(--accent)' : 'var(--amber)';
+
+    return '<div class="card" style="border-left:3px solid ' + borderColor + ';margin-bottom:0">' +
+      '<div class="flex items-center justify-between mb-10" style="flex-wrap:wrap;gap:8px">' +
+        '<div class="flex items-center gap-8" style="flex-wrap:wrap">' +
+          '<span class="font-mono font-700 text-sm">' + r.ptId + '</span>' +
+          '<span class="badge badge-gray" style="font-size:.6rem">🔒 Real patient</span>' +
+          (confirmed ? '<span class="badge badge-teal">✓ Confirmed</span>' : '<span class="badge badge-amber">⏳ Pending review</span>') +
+        '</div>' +
+        '<div class="flex gap-8">' +
+          '<button class="btn ' + (!confirmed ? 'btn-primary' : 'btn-ghost') + ' btn-sm" onclick="openRealConfirmModal(\'' + r.ptId + '\',\'' + t.id + '\')">' +
+            (!confirmed ? 'Review &amp; Confirm' : 'View') +
+          '</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="text-sm mb-4"><strong>Complaint:</strong> ' + escapeHtml(t.title || 'New Consultation') + '</div>' +
+      (dx ? '<div class="text-sm mb-4"><strong>AI Diagnosis:</strong> ' + escapeHtml(dxName) +
+        (dxConf ? ' <span class="text-xs font-mono" style="color:var(--muted)">' + dxConf + '% confidence</span>' : '') + '</div>' : '') +
+      '<div class="text-xs" style="color:var(--muted)">Submitted ' + submitted + '</div>' +
+    '</div>';
+  }).join('');
+
+  var realSectionHtml = realConsults.length
+    ? '<div class="stack-12 mb-16">' +
+        '<div class="text-xs font-600" style="color:var(--accent);text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px">🔴 Live pre-consultations</div>' +
+        realQueueHtml +
+      '</div>'
+    : '';
+
   var pts = filter === 'pending'   ? MOCK_PATIENTS.filter(function(p){ return !p.diagnosis.confirmed; })
           : filter === 'confirmed' ? MOCK_PATIENTS.filter(function(p){ return p.diagnosis.confirmed; })
           : MOCK_PATIENTS;
 
-  document.getElementById('queueList').innerHTML = pts.map(function(p) {
+  var mockSectionLabel = realConsults.length
+    ? '<div class="text-xs font-600" style="color:var(--subtle);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px">Demo patients</div>'
+    : '';
+
+  var mockHtml = pts.map(function(p) {
     var accentColor = !p.diagnosis.confirmed ? 'var(--amber)' : p.outlier ? 'var(--red)' : 'var(--accent)';
     var bars = p.checkins.slice(-6).map(function(c) {
       return '<div style="display:flex;flex-direction:column;align-items:center;gap:2px">' +
@@ -165,6 +350,8 @@ function renderQueue(filter) {
       (p.checkins.length > 0 ? '<hr class="divider mb-10"><div class="flex gap-12" style="flex-wrap:wrap">' + bars + '</div>' : '') +
     '</div>';
   }).join('');
+
+  document.getElementById('queueList').innerHTML = realSectionHtml + mockSectionLabel + mockHtml;
 }
 function filterQueue(val) { renderQueue(val); }
 
@@ -316,8 +503,71 @@ function renderOutliers() {
     }).join('');
 }
 
+// ── Real thread confirm modal ─────────────────────────────────
+function openRealConfirmModal(ptId, threadId) {
+  activePatientId = ptId;
+  activeThreadId  = threadId;
+
+  var store = {};
+  try { store = JSON.parse(localStorage.getItem('cue_store') || '{}'); } catch(e) {}
+  var consultations = (store[ptId] && store[ptId].consultations) || [];
+  var t = consultations.find(function(x){ return x.id === threadId; });
+  if (!t) return;
+
+  var confirmed = t.doctorReview && t.doctorReview.confirmed;
+  var dx  = t.diagResult && t.diagResult.diagnoses && t.diagResult.diagnoses[0];
+  var dxName  = dx ? dx.label : 'AI analysis pending';
+  var dxConf  = dx ? (dx.confidence || 75) : null;
+  var answers = (t.answers || []).slice(0, 8);
+  var checkins = t.checkins || [];
+
+  var sevChips = checkins.map(function(c) {
+    return '<div style="text-align:center;padding:6px 10px;border-radius:6px;background:var(--surface-2);border:1px solid var(--border)">' +
+      '<div style="font-size:.62rem;color:var(--subtle)">' + new Date(c.date).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) + '</div>' +
+      '<div style="font-weight:700;color:' + severityColor(c.severity) + '">' + c.severity + '/10</div>' +
+    '</div>';
+  }).join('');
+
+  var answerRows = answers.length
+    ? answers.map(function(a) {
+        return '<div class="info-row"><span class="info-label" style="font-size:.68rem">' + escapeHtml(a.cat||a.question||'Q') + '</span><span class="info-val text-sm">' + escapeHtml(a.text||a.answer||'—') + '</span></div>';
+      }).join('')
+    : '<p class="text-sm" style="color:var(--muted)">No interview answers recorded.</p>';
+
+  var symptomChips = (t.diagResult && t.diagResult.diagnoses && t.diagResult.diagnoses[0] && t.diagResult.diagnoses[0].symptoms || []).map(function(s) {
+    return '<span class="badge badge-gray">' + escapeHtml(s) + '</span>';
+  }).join('');
+
+  document.getElementById('modalContent').innerHTML =
+    '<div class="flex items-center gap-8 mb-4" style="flex-wrap:wrap">' +
+      '<span class="font-mono font-700">' + ptId + '</span>' +
+      '<span class="badge badge-gray" style="font-size:.68rem">🔒 Real patient</span>' +
+      (confirmed ? '<span class="badge badge-teal">✓ Already confirmed</span>' : '<span class="badge badge-amber">⏳ Awaiting review</span>') +
+    '</div>' +
+    '<div class="text-xs mb-10" style="color:var(--subtle)">Submitted ' + new Date(t.submittedAt).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) + '</div>' +
+    (dx
+      ? '<div class="dx-card primary mb-4">' +
+          '<div class="flex items-center justify-between mb-6">' +
+            '<div><div class="font-600">' + escapeHtml(dxName) + '</div>' +
+            (dx.icd ? '<div class="text-xs font-mono" style="color:var(--muted)">ICD-10: ' + dx.icd + '</div>' : '') + '</div>' +
+            '<span class="badge badge-teal">AI · ' + dxConf + '%</span>' +
+          '</div>' +
+          '<div class="flex items-center gap-8"><div class="conf-bar"><div class="conf-fill" style="width:' + dxConf + '%"></div></div><span class="text-xs" style="color:var(--muted)">' + dxConf + '%</span></div>' +
+          (symptomChips ? '<div class="flex gap-6 mt-8" style="flex-wrap:wrap">' + symptomChips + '</div>' : '') +
+        '</div>'
+      : '<div class="card card-sm mb-4"><p class="text-sm" style="color:var(--muted)">AI analysis not yet available.</p></div>') +
+    (checkins.length ? '<div class="mb-4"><div class="text-xs" style="color:var(--subtle);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Severity history</div><div class="flex gap-6" style="flex-wrap:wrap">' + sevChips + '</div></div>' : '') +
+    '<div class="mb-4"><div class="text-xs" style="color:var(--subtle);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Interview answers</div>' + answerRows + '</div>' +
+    '<div class="alert alert-warning"><span>⚕️</span><p>Your confirmation is recorded in the audit log with your provider ID and timestamp (HIPAA § 164.312(b)).</p></div>';
+
+  document.getElementById('overridePanel').style.display = 'none';
+  document.getElementById('confirmModal').classList.add('open');
+  _d.Audit.log('real_consultation_viewed', ptId, { reviewer: _d.Session.id, threadId: threadId });
+}
+
 // ── Confirm modal ─────────────────────────────────────────────
 function openConfirmModal(patientId) {
+  activeThreadId = null;  // clear any real thread context
   activePatientId = patientId;
   selectPatient(patientId);
   var p = MOCK_PATIENTS.find(function(x){ return x.id === patientId; });
@@ -360,9 +610,28 @@ function openConfirmModal(patientId) {
 function closeConfirmModal() { document.getElementById('confirmModal').classList.remove('open'); }
 
 function confirmDiagnosis(action) {
+  if (action === 'override') { document.getElementById('overridePanel').style.display = ''; return; }
+
+  // ── Real thread path ──
+  if (activeThreadId) {
+    if (action === 'confirm') {
+      confirmRealThread(activePatientId, activeThreadId);
+      _d.Audit.log('real_diagnosis_confirmed', activePatientId, { reviewer: _d.Session.id, threadId: activeThreadId });
+      closeConfirmModal();
+      renderQueue(); renderRealThreadDetail(activePatientId, activeThreadId); updateCounts();
+      showToast('✓ Diagnosis confirmed. Patient can now see their results.');
+    }
+    if (action === 'defer') {
+      _d.Audit.log('real_diagnosis_deferred', activePatientId, { reviewer: _d.Session.id, threadId: activeThreadId });
+      closeConfirmModal();
+      showToast('⏸ Deferred. Patient will be prompted for more information.');
+    }
+    return;
+  }
+
+  // ── Mock patient path ──
   var p = MOCK_PATIENTS.find(function(x){ return x.id === activePatientId; });
   if (!p) return;
-  if (action === 'override') { document.getElementById('overridePanel').style.display = ''; return; }
   if (action === 'confirm') {
     p.diagnosis.confirmed = true; p.diagnosis.confirmedBy = _d.Session.id;
     _d.Audit.log('diagnosis_confirmed', activePatientId, { reviewer: _d.Session.id });
@@ -376,9 +645,23 @@ function confirmDiagnosis(action) {
 }
 
 function submitOverride() {
-  var dx = document.getElementById('overrideDx').value.trim();
+  var dx    = document.getElementById('overrideDx').value.trim();
+  var notes = document.getElementById('overrideNotes').value.trim();
   if (!dx) { alert('Please enter your diagnosis.'); return; }
+
+  // ── Real thread path ──
+  if (activeThreadId) {
+    overrideRealThread(activePatientId, activeThreadId, dx, notes);
+    _d.Audit.log('real_diagnosis_overridden', activePatientId, { reviewer: _d.Session.id, threadId: activeThreadId, override: dx });
+    closeConfirmModal();
+    renderQueue(); renderRealThreadDetail(activePatientId, activeThreadId); updateCounts();
+    showToast('✏️ Diagnosis overridden. Patient can now see updated results.');
+    return;
+  }
+
+  // ── Mock patient path ──
   var p = MOCK_PATIENTS.find(function(x){ return x.id === activePatientId; });
+  if (!p) return;
   p.diagnosis.name = dx; p.diagnosis.confirmed = true;
   p.diagnosis.overridden = true; p.diagnosis.confirmedBy = _d.Session.id;
   _d.Audit.log('diagnosis_overridden', activePatientId, { reviewer: _d.Session.id, override: dx });

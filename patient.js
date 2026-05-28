@@ -328,11 +328,11 @@ function renderDraftBanner(draft) {
   banner.innerHTML =
     '<span style="font-size:1.2rem">📝</span>' +
     '<div style="flex:1;min-width:0">' +
-      '<div style="font-size:.875rem;font-weight:600;color:var(--accent-h)">You have an unfinished interview</div>' +
+      '<div style="font-size:.875rem;font-weight:600;color:var(--accent)">You have an unfinished interview</div>' +
       '<div style="font-size:.78rem;color:var(--text-2);margin-top:2px">' + escapeHtml(draft.title || 'New consultation') + ' — tap to continue</div>' +
     '</div>' +
     '<button onclick="event.stopPropagation();discardDraft(\'' + draft.id + '\')" style="background:none;border:none;cursor:pointer;font-size:.75rem;color:var(--muted);padding:4px 6px;border-radius:4px;flex-shrink:0" title="Discard">✕ Discard</button>' +
-    '<span style="color:var(--accent-h);font-size:1rem;flex-shrink:0">›</span>';
+    '<span style="color:var(--accent);font-size:1rem;flex-shrink:0">›</span>';
   if (container) container.insertAdjacentElement('beforebegin', banner);
 }
 
@@ -391,10 +391,10 @@ function buildSicknessCard(t) {
   var canResolve = t.status === 'new' || t.status === 'pending' || t.status === 'ongoing';
   var resolveBtn = canResolve
     ? '<button onclick="event.stopPropagation();markHealthy(\'' + t.id + '\')" ' +
-        'style="display:flex;align-items:center;gap:4px;background:none;border:1.5px solid #BBF7D0;' +
-        'color:#15803D;border-radius:var(--r-full);padding:3px 10px;font-size:.72rem;font-weight:600;' +
-        'cursor:pointer;font-family:var(--font);white-space:nowrap;transition:background .12s;" ' +
-        'onmouseover="this.style.background=\'#F0FDF4\'" onmouseout="this.style.background=\'none\'" ' +
+        'style="display:flex;align-items:center;gap:4px;background:var(--green-bg);border:1px solid var(--green-border);' +
+        'color:var(--green);border-radius:var(--r-full);padding:3px 10px;font-size:.72rem;font-weight:600;' +
+        'cursor:pointer;font-family:var(--font);white-space:nowrap;transition:all .12s;" ' +
+        'onmouseover="this.style.opacity=\'0.8\'" onmouseout="this.style.opacity=\'1\'" ' +
         'title="Mark as resolved — feeling better">✓ Feeling better</button>'
     : '';
 
@@ -553,10 +553,10 @@ function renderThreadView() {
     } else {
       actionsEl.innerHTML =
         '<button onclick="markHealthyFromThread()" ' +
-          'style="display:flex;align-items:center;gap:5px;background:none;border:1.5px solid #BBF7D0;' +
-          'color:#15803D;border-radius:var(--r-full);padding:5px 12px;font-size:.78rem;font-weight:600;' +
-          'cursor:pointer;font-family:var(--font);white-space:nowrap;transition:background .12s;" ' +
-          'onmouseover="this.style.background=\'#F0FDF4\'" onmouseout="this.style.background=\'none\'">✓ Feeling better</button>';
+          'style="display:flex;align-items:center;gap:5px;background:var(--green-bg);border:1px solid var(--green-border);' +
+          'color:var(--green);border-radius:var(--r-full);padding:5px 14px;font-size:.78rem;font-weight:600;' +
+          'cursor:pointer;font-family:var(--font);white-space:nowrap;transition:all .12s;" ' +
+          'onmouseover="this.style.opacity=\'0.8\'" onmouseout="this.style.opacity=\'1\'">✓ Feeling better</button>';
     }
   }
 
@@ -655,7 +655,7 @@ function buildPreconsultBody(phase, done) {
       ? 'AI summary generated · ' + (t.answers.length || (t.clinicalMsgs.length > 1 ? 'Dynamic interview' : '')) + ' questions answered'
       : (t.answers.length ? t.answers.length + ' questions answered' : 'Completed');
     return '<div class="stage-collapsed" onclick="expandPreconsult()">' +
-      '🩺 ' + summary + ' <span style="float:right;color:var(--accent-h)">Review ↓</span>' +
+      '🩺 ' + summary + ' <span style="float:right;color:var(--accent)">Review ↓</span>' +
     '</div>' +
     '<div id="preconsult-expanded" style="display:none;margin-top:10px">' + buildPreconsultExpanded() + '</div>';
   }
@@ -848,10 +848,10 @@ function renderChart() {
   ctx.beginPath(); ctx.moveTo(pad.l, pad.t+ch-(data[0]/10)*ch);
   data.forEach(function(v,i){ ctx.lineTo(pad.l+(n===1?cw/2:(i/(n-1))*cw), pad.t+ch-(v/10)*ch); });
   ctx.lineTo(pad.l+cw, pad.t+ch); ctx.lineTo(pad.l, pad.t+ch); ctx.closePath();
-  ctx.fillStyle = 'rgba(13,148,136,.07)'; ctx.fill();
+  ctx.fillStyle = 'rgba(124,92,252,.1)'; ctx.fill();
 
   // line
-  ctx.beginPath(); ctx.strokeStyle = '#0D9488'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.strokeStyle = '#7c5cfc'; ctx.lineWidth = 2;
   data.forEach(function(v,i){ var x=pad.l+(n===1?cw/2:(i/(n-1))*cw),y=pad.t+ch-(v/10)*ch; i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
   ctx.stroke();
 
@@ -859,8 +859,8 @@ function renderChart() {
   data.forEach(function(v,i){
     var x=pad.l+(n===1?cw/2:(i/(n-1))*cw), y=pad.t+ch-(v/10)*ch;
     ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2);
-    ctx.fillStyle = v>=7?'#EF4444':'#0D9488'; ctx.fill();
-    ctx.strokeStyle='white'; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.fillStyle = v>=7?'#f87171':'#7c5cfc'; ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,0.15)'; ctx.lineWidth=1.5; ctx.stroke();
   });
 
   // x labels
@@ -1289,7 +1289,7 @@ function buildSoapNotes(soap, diagnoses) {
   var date = new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
   function row(l,v){ return '<div style="display:flex;gap:12px;padding:6px 0;border-bottom:1px solid var(--border)"><span style="min-width:120px;font-size:.75rem;font-weight:600;color:var(--subtle);text-transform:uppercase;letter-spacing:.04em;padding-top:1px">'+l+'</span><span style="font-size:.85rem;color:var(--text-2);flex:1;line-height:1.6">'+v+'</span></div>'; }
   function sh(l){ return '<div style="margin:14px 0 6px;padding:5px 10px;background:var(--surface-2);border-radius:4px;border-left:3px solid var(--accent)"><span style="font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)">'+l+'</span></div>'; }
-  return '<div style="font-family:var(--font)"><div style="display:flex;justify-content:space-between;padding-bottom:10px;border-bottom:2px solid var(--border);margin-bottom:4px"><div><div style="font-size:.8rem;font-weight:700;color:var(--text)">CUE PRE-CONSULTATION NOTE</div><div style="font-size:.72rem;color:var(--subtle)">'+ptId+' · '+date+' · AI</div></div><span class="badge badge-teal" style="font-size:.65rem">Claude Clinical AI</span></div>'+sh('S — Subjective')+row('HPI',soap.subjective||'—')+sh('O — Objective')+row('Findings',soap.objective||'Pending exam')+sh('A — Assessment')+row('Primary Dx','<strong>'+primaryDx+'</strong>')+row('Reasoning',soap.assessment||'—')+'<div style="margin:8px 0;padding:8px 12px;background:#FEF9C3;border-radius:4px;font-size:.78rem;color:#713F12">⚠️ AI draft — must be confirmed by physician.</div>'+sh('P — Plan')+row('Plan',soap.plan||'—')+'<div style="margin-top:12px;font-size:.7rem;color:var(--subtle)">Generated by Claude Clinical AI (OPQRST + VINDICATE)</div></div>';
+  return '<div style="font-family:var(--font)"><div style="display:flex;justify-content:space-between;padding-bottom:10px;border-bottom:2px solid var(--border);margin-bottom:4px"><div><div style="font-size:.8rem;font-weight:700;color:var(--text)">CUE PRE-CONSULTATION NOTE</div><div style="font-size:.72rem;color:var(--subtle)">'+ptId+' · '+date+' · AI</div></div><span class="badge badge-teal" style="font-size:.65rem">Claude Clinical AI</span></div>'+sh('S — Subjective')+row('HPI',soap.subjective||'—')+sh('O — Objective')+row('Findings',soap.objective||'Pending exam')+sh('A — Assessment')+row('Primary Dx','<strong>'+primaryDx+'</strong>')+row('Reasoning',soap.assessment||'—')+'<div style="margin:8px 0;padding:8px 12px;background:var(--amber-bg);border:1px solid var(--amber-border);border-radius:4px;font-size:.78rem;color:var(--amber)">⚠️ AI draft — must be confirmed by physician.</div>'+sh('P — Plan')+row('Plan',soap.plan||'—')+'<div style="margin-top:12px;font-size:.7rem;color:var(--subtle)">Generated by Claude Clinical AI (OPQRST + VINDICATE)</div></div>';
 }
 
 function handleApiError(err) {
